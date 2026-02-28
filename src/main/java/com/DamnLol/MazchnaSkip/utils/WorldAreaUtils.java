@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 20256 - DamnLol-GIT
+ * Copyright (c) 2026 - DamnLol-GIT
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
