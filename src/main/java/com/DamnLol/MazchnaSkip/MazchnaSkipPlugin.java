@@ -83,6 +83,8 @@ import java.util.regex.Pattern;
 @Slf4j
 @PluginDescriptor(
 		name = "Mazchna Skipping",
+		configName = "mazchnaskip",
+		enabledByDefault = true,
 		description = "Mazchna Slayer Boosting",
 		tags = {"slayer", "boost", "overlay", "task", "mazchna", "canfis"}
 )
