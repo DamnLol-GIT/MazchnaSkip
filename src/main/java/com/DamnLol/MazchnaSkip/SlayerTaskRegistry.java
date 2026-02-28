@@ -74,14 +74,14 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Third level of the Stronghold of Security.", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(1957, 5006, 0),
-                                            new WorldPoint(1967, 4992, 0)
+                                            new WorldPoint(2139, 5262, 0),
+                                            new WorldPoint(2160, 5244, 0)
                                     )
-                            ), new String[]{"Skull Sceptre: Invoke - [Block]"})
-                    ), "*Recommended Block*")
+                            ), new String[]{"Skull Sceptre: Invoke"})
+                    ), "**Block**")
             ),
             Map.entry("cave bugs", new SlayerTask("Cave bugs", List.of(NpcID.SWAMP_CAVE_BUG), List.of(
-                            new WorldPoint(3206, 3217, 0),
+                            new WorldPoint(2789, 3617, 0),
                             new WorldPoint(2786, 5318, 0)
                     ), List.of(
                             new NpcLocation("Dorgesh-Kaan South Dungeon", List.of(
@@ -99,19 +99,18 @@ public class SlayerTaskRegistry {
                             NpcID.SLAYER_CAVE_CRAWLER_4,
                             NpcID.SUPERIOR_CAVE_CRAWLER_ICE), List.of(
                             new WorldPoint(2789, 3617, 0),
-                            new WorldPoint(2795, 9997, 0)
+                            new WorldPoint(2787, 9996, 0)
                     ), List.of(
                             new NpcLocation("Fremennik Slayer Dungeon", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(2777, 9987, 0),
-                                            new WorldPoint(2799, 10007, 0)
+                                            new WorldPoint(2776, 9990, 0),
+                                            new WorldPoint(2812, 10007, 0)
                                     )
                             ), new String[]{"Slayer ring: Fremennik Slayer Dungeon (Option 3)", "Fairy ring: AJR"})
                     ))
             ),
             Map.entry("cave slimes", new SlayerTask("Cave slimes", List.of(NpcID.SWAMP_CAVE_SLIME), List.of(
-                            new WorldPoint(3206, 3217, 0),
-                            new WorldPoint(2786, 5318, 0)
+                            new WorldPoint(2728, 5235, 0)
                     ), List.of(
                             new NpcLocation("Dorgesh-Kaan South Dungeon", List.of(
                                     WorldAreaUtils.fromCorners(
@@ -131,11 +130,11 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Fremennik Slayer Dungeon", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(2779, 10044, 0),
-                                            new WorldPoint(2809, 10026, 0)
+                                            new WorldPoint(2780, 10026, 0),
+                                            new WorldPoint(2805, 10041, 0)
                                     )
                             ), new String[]{"Slayer ring: Fremennik Slayer Dungeon (Option 3)", "Fairy ring: AJR"})
-                    ), "*Recommended Block*")
+                    ), "**Block**")
             ),
             Map.entry("crabs", new SlayerTask("Crabs", List.of(NpcID.HORROR_ROCKCRAB, NpcID.HORROR_ROCKCRAB_SMALL, NpcID.HORROR_ROCKCRAB_INACTIVE, NpcID.HORROR_ROCKCRAB_SMALL_INACTIVE), List.of(
                             new WorldPoint(2702, 3724, 0)
@@ -143,7 +142,7 @@ public class SlayerTaskRegistry {
                             new NpcLocation("North of Rellekka", List.of(
                                     WorldAreaUtils.fromCorners(
                                             new WorldPoint(2691, 3733, 0),
-                                            new WorldPoint(2714, 3713, 0)
+                                            new WorldPoint(2721, 3712, 0)
                                     )
                             ), new String[]{"Fairy ring: DKS"})
                     ))
@@ -164,31 +163,31 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Morytania Slayer Tower", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3408, 3539, 0),
-                                            new WorldPoint(3445, 3577, 0)
+                                            new WorldPoint(3406, 3578, 0),
+                                            new WorldPoint(3433, 3541, 0)
                                     )
                             ), new String[]{"Slayer Ring: Morytania Slayer Tower (Option 2)"})
                     ))
             ),
-            Map.entry("dogs", new SlayerTask("Dogs", List.of(NpcID.ICS_LITTLE_JACKAL_ALT), List.of(
-                            new WorldPoint(3347, 2783, 0)
+            Map.entry("dogs", new SlayerTask("Dogs", List.of(NpcID.ICS_LITTLE_JACKAL), List.of(
+                            new WorldPoint(3382, 2913, 0)
                     ), List.of(
-                            new NpcLocation("East of Sophanem", List.of(
+                            new NpcLocation("West of Nardah", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3329, 2770, 0),
-                                            new WorldPoint(3351, 2788, 0)
+                                            new WorldPoint(3365, 2939, 0),
+                                            new WorldPoint(3394, 2889, 0)
                                     )
-                            ), new String[]{"Pharaoh's sceptre: Jaleustrophos (Option 2", "Fairy Ring DLQ"})
+                            ), new String[]{"Desert Amulet (Option 2)", "Fairy Ring DLQ"})
                     ))
             ),
             Map.entry("flesh crawlers", new SlayerTask("Flesh Crawlers", List.of(NpcID.SOS_FAM_FLESHCRAWLER, NpcID.SOS_FAM_FLESHCRAWLER2, NpcID.SOS_FAM_FLESHCRAWLER3), List.of(
                             new WorldPoint(3084, 3417, 0),
-                            new WorldPoint(2005, 5202, 0)
+                            new WorldPoint(2006, 5202, 0)
                     ), List.of(
-                            new NpcLocation("Stronghold Of Security", List.of(
+                            new NpcLocation("Second Layer of the Stronghold Of Security", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(1997, 5210, 0),
-                                            new WorldPoint(2012, 5196, 0)
+                                            new WorldPoint(1997, 5194, 0),
+                                            new WorldPoint(2013, 5211, 0)
                                     )
                             ), new String[]{"Skull Sceptre: Invoke"})
                     ))
@@ -257,13 +256,13 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Asgarnian Ice Dungeon", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3431, 3530, 0),
-                                            new WorldPoint(3452, 3567, 0)
+                                            new WorldPoint(3037, 9592, 0),
+                                            new WorldPoint(3066, 9563, 0)
                                     )
                             ), new String[]{"Fairy Ring: AIQ"})
-                    ), "*Recommended Block*")
+                    ), "**Block**")
             ),
-            Map.entry("kalphite", new SlayerTask("Kalphite", List.of(NpcID.KALPHITE_WORKER_STRONGHOLDCAVE), List.of(
+            Map.entry("kalphites", new SlayerTask("Kalphites", List.of(NpcID.KALPHITE_WORKER_STRONGHOLDCAVE), List.of(
                             new WorldPoint(3326, 3122, 0),
                             new WorldPoint(3372, 9528, 0),
                             new WorldPoint(3324, 9502, 0)
@@ -281,31 +280,37 @@ public class SlayerTaskRegistry {
                     ), new WorldPoint(3309, 9526, 0))
             ),
             Map.entry("killerwatts", new SlayerTask("Killerwatts", List.of(NpcID.SLAYER_KILLERWATT, NpcID.SLAYER_KILLERWATT_BALL), List.of(
-                            new WorldPoint(3108, 3360, 0),
-                            new WorldPoint(3104, 3363, 1),
-                            new WorldPoint(3104, 3363, 1),
+                            new WorldPoint(3108, 3361, 0),
+                            new WorldPoint(3104, 3364, 1),
+                            new WorldPoint(3111, 3363, 2),
                             new WorldPoint(2679, 5213, 0)
                     ), List.of(
                             new NpcLocation("Killerwatt Plane", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(2650, 5232, 0),
-                                            new WorldPoint(2691, 5203, 0)
+                                            new WorldPoint(2658, 5196, 2),
+                                            new WorldPoint(2678, 5220, 2)
                                     ),
                                     WorldAreaUtils.fromCorners(
                                             new WorldPoint(2650, 5215, 0),
                                             new WorldPoint(2696, 5184, 0)
                                     )
-                            ), new String[]{"Draynor Manor Teletab"})
-                    ), "Bring Insulated Boots. *Recommended Block*")
+                            ), new String[]{"Draynor Manor via Nexus (Option N) ", "Amulet of Glory (Option Q)"})
+                    ), "Bring Insulated Boots. **Block**")
             ),
-            Map.entry("lizards", new SlayerTask("Lizards", List.of(NpcID.SLAYER_LIZARD_SMALL2_SANDY, NpcID.SLAYER_LIZARD_SMALL1_GREEN), List.of(
+            Map.entry("lizards", new SlayerTask("Lizards", List.of(
+                            NpcID.SLAYER_LIZARD_SMALL2_SANDY,
+                            NpcID.SLAYER_LIZARD_SMALL1_GREEN,
+                            NpcID.SLAYER_LIZARD_MASSIVE,
+                            NpcID.SLAYER_LIZARD_LARGE1_GREEN,
+                            NpcID.SLAYER_LIZARD_LARGE2_SANDY,
+                            NpcID.SLAYER_LIZARD_LARGE3_SANDY), List.of(
                             new WorldPoint(3413, 3035, 0)
                     ), List.of(
                             new NpcLocation("North of Nardah Fairy Ring", List.of(
-                                    WorldAreaUtils.fromCorners(new WorldPoint(3392, 3027, 0), new WorldPoint(3423, 3049, 0)),
-                                    WorldAreaUtils.fromCorners(new WorldPoint(3392, 3050, 0), new WorldPoint(3423, 3069, 0)),
-                                    WorldAreaUtils.fromCorners(new WorldPoint(3424, 3050, 0), new WorldPoint(3451, 3069, 0)),
-                                    WorldAreaUtils.fromCorners(new WorldPoint(3424, 3027, 0), new WorldPoint(3451, 3049, 0))
+                                    WorldAreaUtils.fromCorners(
+                                            new WorldPoint(3402, 3049, 0),
+                                            new WorldPoint(3441, 3022, 0)
+                                    )
                             ), new String[]{"Fairy ring: DLQ"})
                     ), "Bring Ice coolers")
             ),
@@ -314,11 +319,11 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Mudskipper Point", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3003, 3103, 0),
-                                            new WorldPoint(2987, 3113, 0)
+                                            new WorldPoint(2993, 3116, 0),
+                                            new WorldPoint(2999, 3105, 0)
                                     )
                             ), new String[]{"Fairy Ring: AIQ"})
-                    ), "Bring Fishing Explosives. *Recommended Block*")
+                    ), "Bring Fishing Explosives. **Block**")
             ),
             Map.entry("pyrefiends", new SlayerTask("Pyrefiends", List.of(
                             NpcID.SLAYER_PYREFIEND_1,
@@ -326,14 +331,15 @@ public class SlayerTaskRegistry {
                             NpcID.SLAYER_PYREFIEND_3,
                             NpcID.SLAYER_PYREFIEND_4,
                             NpcID.SLAYER_PYREBEAST_1,
+                            NpcID.SLAYER_PYREBEAST_2,
                             NpcID.SUPERIOR_PYREFIEND,
                             NpcID.SUPERIOR_PYRELORD), List.of(
                             new WorldPoint(2256, 2964, 0)
                     ), List.of(
                             new NpcLocation("Isle of Souls", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(2233, 2974, 1),
-                                            new WorldPoint(2276, 2948, 1)
+                                            new WorldPoint(2243, 2971, 0),
+                                            new WorldPoint(2264, 2956, 0)
                                     )
                             ), new String[]{"Fairy Ring: BJP"})
                     ))
@@ -344,8 +350,8 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Fremennik Slayer Dungeon", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(2788, 10024, 0),
-                                            new WorldPoint(2811, 10009, 0)
+                                            new WorldPoint(2787, 10024, 0),
+                                            new WorldPoint(2809, 10010, 0)
                                     )
                             ), new String[]{"Slayer ring: Fremennik Slayer Dungeon (Option 3)", "Fairy ring: AJR"})
                     ), "Bring Bags of Salt")
@@ -356,13 +362,13 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Mining Guild", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3061, 9766, 0),
-                                            new WorldPoint(3025, 9799, 0)
+                                            new WorldPoint(3061, 9784, 0),
+                                            new WorldPoint(3031, 9759, 0)
                                     )
-                            ), new String[]{"Skill's Necklace: Mining Guild"})
+                            ), new String[]{"Skill's Necklace: Mining Guild (Option F)"})
                     ))
             ),
-            Map.entry("shades", new SlayerTask("Shades", List.of(NpcID.SHADE_LEVEL1, NpcID.SHADE_HEAVEN), List.of(
+            Map.entry("shades", new SlayerTask("Shades", List.of(NpcID.SHADESHADOW_LEVEL1, NpcID.SHADE_LEVEL1), List.of(
                             new WorldPoint(3488, 3275, 0)
                     ), List.of(
                             new NpcLocation("Mort'ton", List.of(
@@ -371,7 +377,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(3514, 3262, 0)
                                     )
                             ), new String[]{"Morytania legs 3/4 to Burgh de Rott", "Mort'ton Teleport"})
-                    ), "*Recommended Block*")
+                    ), "**Block**")
             ),
             Map.entry("skeletons", new SlayerTask("Skeletons", List.of(
                             NpcID.SKELETON_UNARMED,
@@ -394,8 +400,8 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("West of Burgh De Rott", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3453, 3247, 0),
-                                            new WorldPoint(3465, 3217, 0)
+                                            new WorldPoint(3468, 3214, 0),
+                                            new WorldPoint(3447, 3247, 0)
                                     )
                             ), new String[]{"Morytania legs 3/4 to Burgh de Rott", "Mort'ton Teleport"})
                     ))
@@ -406,11 +412,11 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Lumbridge Swamp Caves", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3159, 9575, 0),
-                                            new WorldPoint(3166, 9571, 0)
+                                            new WorldPoint(3160, 9575, 0),
+                                            new WorldPoint(3164, 9572, 0)
                                     )
                             ), new String[]{"Lumbridge tele and run South to the Swamps. Run West to the Cave entrance. (Bring rope if first visit)"})
-                    ), "Bring a light source. Requires Slayer Helmet. *Recommended Block*")
+                    ), "Bring a light source. Requires Slayer Helmet. Climb up/down for fast reset. **Block**")
             ),
             Map.entry("wolves", new SlayerTask("Wolves", List.of(NpcID.WHITEWOLF_SENTRY, NpcID.WHITEWOLF, NpcID.WOLFPACK_LEADER_WHITER, NpcID.PACK_WOLF_WHITER), List.of(
                             new WorldPoint(2847, 3498, 0)
@@ -420,7 +426,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2828, 3477, 0),
                                             new WorldPoint(2865, 3519, 0)
                                     )
-                            ), new String[]{"Gnome Glider: Sindarpos"})
+                            ), new String[]{"Royal Seed Pod to Gnome Glider: Sindarpos"})
                     ))
             ),
             Map.entry("zombies", new SlayerTask("Zombies", List.of(NpcID.AHOY_UNDEAD_COW, NpcID.AHOY_UNDEAD_CHICKEN), List.of(

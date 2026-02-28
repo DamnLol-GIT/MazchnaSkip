@@ -126,7 +126,7 @@ public interface MazchnaSkipConfig extends Config {
             section = npcHighlightSettings
     )
     default Color getNpcColour() {
-        return Color.decode("#DDFF00");
+        return Color.decode("#2EDACA");
     }
 
     // NPC Area outline
@@ -156,7 +156,7 @@ public interface MazchnaSkipConfig extends Config {
             section = slayerAreaOutline
     )
     default Color getSlayerAreaOutlineColour() {
-        return Color.decode("#DDFF00");
+        return Color.decode("#2EDACA");
     }
 
     // Debug settings
