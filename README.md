@@ -1,2 +1,1 @@
-# Example
-An example greeter plugin
+It's like Turael skipping... but with Mazchna!
