@@ -68,7 +68,7 @@ public class SlayerTaskRegistry {
                             ), new String[]{"Fairy ring: BLR", "Quest Cape teleport"})
                     ))
             ),
-            Map.entry("catablepons", new SlayerTask("Catablepons", List.of(NpcID.SOS_PEST_CATABLEPON, NpcID.SOS_PEST_CATABLEPON2, NpcID.SOS_PEST_CATABLEPON3), List.of(
+            Map.entry("catablepon", new SlayerTask("Catablepon", List.of(NpcID.SOS_PEST_CATABLEPON, NpcID.SOS_PEST_CATABLEPON2, NpcID.SOS_PEST_CATABLEPON3), List.of(
                             new WorldPoint(3084, 3417, 0),
                             new WorldPoint(1956, 4997, 0)
                     ), List.of(
@@ -124,7 +124,7 @@ public class SlayerTaskRegistry {
                             ), new String[]{"Fairy ring: AJQ"})
                     ), "Bring a light source", new WorldPoint(2730, 5234, 0))
             ),
-            Map.entry("cockatrices", new SlayerTask("Cockatrices", List.of(NpcID.SLAYER_COCKATRICE, NpcID.SUPERIOR_COCKATRICE), List.of(
+            Map.entry("cockatrice", new SlayerTask("Cockatrice", List.of(NpcID.SLAYER_COCKATRICE, NpcID.SUPERIOR_COCKATRICE), List.of(
                             new WorldPoint(2789, 3617, 0),
                             new WorldPoint(2792, 10035, 0)
                     ), List.of(
@@ -180,7 +180,7 @@ public class SlayerTaskRegistry {
                             ), new String[]{"Desert Amulet (Option 2)", "Fairy Ring DLQ"})
                     ))
             ),
-            Map.entry("flesh crawlers", new SlayerTask("Flesh Crawlers", List.of(NpcID.SOS_FAM_FLESHCRAWLER, NpcID.SOS_FAM_FLESHCRAWLER2, NpcID.SOS_FAM_FLESHCRAWLER3), List.of(
+            Map.entry("fleshcrawlers", new SlayerTask("Flesh Crawlers", List.of(NpcID.SOS_FAM_FLESHCRAWLER, NpcID.SOS_FAM_FLESHCRAWLER2, NpcID.SOS_FAM_FLESHCRAWLER3), List.of(
                             new WorldPoint(3084, 3417, 0),
                             new WorldPoint(2006, 5202, 0)
                     ), List.of(
@@ -264,20 +264,15 @@ public class SlayerTaskRegistry {
             ),
             Map.entry("kalphites", new SlayerTask("Kalphites", List.of(NpcID.KALPHITE_WORKER_STRONGHOLDCAVE), List.of(
                             new WorldPoint(3326, 3122, 0),
-                            new WorldPoint(3372, 9528, 0),
-                            new WorldPoint(3324, 9502, 0)
+                            new WorldPoint(3388, 9504, 0)
                     ), List.of(
                             new NpcLocation("Kalphite Cave", List.of(
                                     WorldAreaUtils.fromCorners(
                                             new WorldPoint(3314, 9493, 0),
                                             new WorldPoint(3333, 9511, 0)
-                                    ),
-                                    WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3297, 9513, 0),
-                                            new WorldPoint(3319, 9539, 0)
                                     )
                             ), new String[]{"Desert amulet 4: Kalphite cave"})
-                    ), new WorldPoint(3309, 9526, 0))
+                    ), new WorldPoint(3323, 9503, 0))
             ),
             Map.entry("killerwatts", new SlayerTask("Killerwatts", List.of(NpcID.SLAYER_KILLERWATT, NpcID.SLAYER_KILLERWATT_BALL), List.of(
                             new WorldPoint(3108, 3361, 0),
