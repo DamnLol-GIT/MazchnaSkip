@@ -21,4 +21,10 @@
 
 <br>
 
+<p align="center"> <b>Known Issues:</b></p>
+<p align="center"> <sup><i>*Directions to Killerwatts with 'Shortest Path' Plugin lead to Dorgesh-Kaan South Dungeon and into the Void.
+  <br>
+        *Fixes: Jagex Spaghetti Code. Block Killerwatts or simple go to Draynor Manor top floor.</i></p></sup>
+  <br>
+  <br>
 <p align="center"><sup><i>Huge thanks to <b>BrastaSauce</b> for his Turael Skipping plugin that served as reference</i></sup></p>
