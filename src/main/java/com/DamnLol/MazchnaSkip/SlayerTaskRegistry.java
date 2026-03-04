@@ -40,8 +40,8 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Morytania Slayer Tower", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3431, 3530, 0),
-                                            new WorldPoint(3452, 3567, 0)
+                                            new WorldPoint(3430, 3530, 0),
+                                            new WorldPoint(3454, 3567, 0)
                                     )
                             ), new String[]{"Slayer Ring: Morytania Slayer Tower (Option 2)"})
                     ))
@@ -103,7 +103,7 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("Fremennik Slayer Dungeon", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(2776, 9990, 0),
+                                            new WorldPoint(2776, 9989, 0),
                                             new WorldPoint(2812, 10007, 0)
                                     )
                             ), new String[]{"Slayer ring: Fremennik Slayer Dungeon (Option 3)", "Fairy ring: AJR"})
@@ -177,7 +177,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(3365, 2939, 0),
                                             new WorldPoint(3394, 2889, 0)
                                     )
-                            ), new String[]{"Desert Amulet (Option 2)", "Fairy Ring DLQ"})
+                            ), new String[]{"Desert Amulet to Nardah", "Fairy Ring DLQ"})
                     ))
             ),
             Map.entry("fleshcrawlers", new SlayerTask("Flesh Crawlers", List.of(NpcID.SOS_FAM_FLESHCRAWLER, NpcID.SOS_FAM_FLESHCRAWLER2, NpcID.SOS_FAM_FLESHCRAWLER3), List.of(
@@ -303,8 +303,8 @@ public class SlayerTaskRegistry {
                     ), List.of(
                             new NpcLocation("North of Nardah Fairy Ring", List.of(
                                     WorldAreaUtils.fromCorners(
-                                            new WorldPoint(3402, 3049, 0),
-                                            new WorldPoint(3441, 3022, 0)
+                                            new WorldPoint(3390, 3049, 0),
+                                            new WorldPoint(3441, 3018, 0)
                                     )
                             ), new String[]{"Fairy ring: DLQ"})
                     ), "Bring Ice coolers")
@@ -385,7 +385,7 @@ public class SlayerTaskRegistry {
                             new NpcLocation("Digsite Dungeon", List.of(
                                     WorldAreaUtils.fromCorners(
                                             new WorldPoint(3359, 9739, 0),
-                                            new WorldPoint(3387, 9757, 0)
+                                            new WorldPoint(3387, 9763, 0)
                                     )
                             ), new String[]{"Digsite pendant (Option 1)", "Digsite teleport"})
                     ), "Bring a rope")
