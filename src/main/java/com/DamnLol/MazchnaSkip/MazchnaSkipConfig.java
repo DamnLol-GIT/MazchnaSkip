@@ -77,7 +77,7 @@ public interface MazchnaSkipConfig extends Config {
     }
 
     @ConfigItem(
-            position = 1,
+            position = 3,
             keyName = "useShortestPath",
             name = "Use 'Shortest Path' plugin",
             description = "Uses Shortest path plugin to current task.<br/>" +
@@ -87,6 +87,18 @@ public interface MazchnaSkipConfig extends Config {
     default boolean useShortestPath() {
         return false;
     }
+
+    @ConfigItem(
+            position = 4,
+            keyName = "useSkipReminder",
+            name = "Hide Mazchna at Streak",
+            description = "Blocks Mazchna in the NPC Contact spell at x Tasks.",
+            section = generalSettings
+    )
+    default SlayerTaskStreak getUseSkipReminder() {
+        return SlayerTaskStreak.Off;
+    }
+
 
     // Highlight settings
     @ConfigSection(

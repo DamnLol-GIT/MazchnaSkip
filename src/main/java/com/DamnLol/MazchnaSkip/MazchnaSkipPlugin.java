@@ -37,21 +37,10 @@ import com.google.inject.Provides;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
-import net.runelite.api.Client;
-import net.runelite.api.MenuAction;
-import net.runelite.api.NPC;
-import net.runelite.api.Player;
-import net.runelite.api.Tile;
-import net.runelite.api.WorldView;
+import net.runelite.api.*;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
-import net.runelite.api.events.ChatMessage;
-import net.runelite.api.events.GameTick;
-import net.runelite.api.events.MenuEntryAdded;
-import net.runelite.api.events.MenuOptionClicked;
-import net.runelite.api.events.NpcDespawned;
-import net.runelite.api.events.NpcSpawned;
+import net.runelite.api.events.*;
 import net.runelite.api.gameval.InterfaceID;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.config.ConfigManager;
@@ -95,6 +84,9 @@ public class MazchnaSkipPlugin extends Plugin {
 	private static final Pattern SLAYER_CURRENT_MESSAGE = Pattern.compile("You're still hunting (?<name>.+)[,;] you have \\d+ to go\\.");
 	private static final Pattern SLAYER_CURRENT_CHAT_MESSAGE = Pattern.compile("You're assigned to kill (?<name>.+)[,;] only \\d+ more to go\\.");
 
+	private static final Pattern SLAYER_TASK_STREAK_10 = Pattern.compile("You've completed ([\\d,]*)9 tasks");
+	private static final Pattern SLAYER_TASK_STREAK_50 = Pattern.compile("You've completed ([\\d,]*(49|99)) tasks");
+
 	private final Set<NPC> targets = new HashSet<>();
 
 	private final String DEBUG_MENU_WORLD_POINT_ONE = "Set WorldPoint1 (Mazchna Skipping)";
@@ -104,6 +96,8 @@ public class MazchnaSkipPlugin extends Plugin {
 
 	private WorldPoint debugWorldPointOne;
 	private WorldPoint debugWorldPointTwo;
+
+	private String lastStreakMessage = "";
 
 	@Inject
 	private Client client;
@@ -150,7 +144,7 @@ public class MazchnaSkipPlugin extends Plugin {
 		npcOverlayService.unregisterHighlighter(npcHighlighter);
 		worldMapPointManager.removeIf(SlayerTaskWorldMapPoint.class::isInstance);
 
-		completeTask();
+		completeTask(true);
 	}
 
 	@Subscribe
@@ -171,14 +165,31 @@ public class MazchnaSkipPlugin extends Plugin {
 
 	@Subscribe
 	public void onChatMessage(ChatMessage event) {
+		String chatMessage = Text.removeTags(event.getMessage());
+
+		boolean matchesTen = SLAYER_TASK_STREAK_10.matcher(chatMessage).find();
+		boolean matchesFifty = SLAYER_TASK_STREAK_50.matcher(chatMessage).find();
+
+		if (matchesFifty || matchesTen) {
+			lastStreakMessage = chatMessage;
+			log.debug("onChatMessage - Updated lastStreakMessage to: '{}'", lastStreakMessage);
+		}
+
+		if (event.getType() == ChatMessageType.GAMEMESSAGE) {
+			if (!matchesTen && !matchesFifty && chatMessage.startsWith("You've completed")) {
+				lastStreakMessage = "";
+				lastActiveStreak = SlayerTaskStreak.Off;
+				mazchnaHidden = false;
+			}
+		} else {
+			mazchnaHidden = false;
+		}
+
 		if (event.getType() != ChatMessageType.GAMEMESSAGE) {
 			return;
 		}
 
-		String chatMessage = Text.removeTags(event.getMessage());
-
 		if (currentSlayerTask == null) {
-			// Check if player used "Check" option on slayer helm
 			Matcher matcher = SLAYER_CURRENT_CHAT_MESSAGE.matcher(chatMessage);
 
 			if (matcher.find()) {
@@ -189,8 +200,9 @@ public class MazchnaSkipPlugin extends Plugin {
 				}
 			}
 		} else {
+
 			if (chatMessage.startsWith("You've completed") && chatMessage.toLowerCase().contains("slayer master")) {
-				completeTask();
+				completeTask(false); // This will clear lastStreakMessage, but we want to keep it
 			}
 		}
 	}
@@ -200,6 +212,12 @@ public class MazchnaSkipPlugin extends Plugin {
 		// Ignore changes from other plugins
 		if (!event.getGroup().equals(MazchnaSkipConfig.CONFIG_GROUP_NAME)) {
 			return;
+		}
+
+		// Log when the streak config changes
+		if (event.getKey().equals("useSkipReminder")) {
+			SlayerTaskStreak newStreak = config.getUseSkipReminder();
+			log.debug("onConfigChanged - useSkipReminder changed to: {}", newStreak);
 		}
 
 		// Set a dummy task
@@ -346,6 +364,9 @@ public class MazchnaSkipPlugin extends Plugin {
 	}
 
 	private void startTask(String taskName) {
+		lastStreakMessage = "";
+		lastActiveStreak = SlayerTaskStreak.Off;
+
 		SlayerTask lookupSlayerTask = SlayerTaskRegistry.getSlayerTaskByNpcName(taskName.toLowerCase());
 
 		if (lookupSlayerTask != null) {
@@ -397,6 +418,10 @@ public class MazchnaSkipPlugin extends Plugin {
 	}
 
 	private void completeTask() {
+		completeTask(false);
+	}
+
+	private void completeTask(boolean resetMazchnaHidden) {
 		areaOutlineOverlay.setAreas(null);
 		overlayManager.remove(areaOutlineOverlay);
 
@@ -406,6 +431,9 @@ public class MazchnaSkipPlugin extends Plugin {
 		npcOverlayService.unregisterHighlighter(npcHighlighter);
 
 		worldMapPointManager.removeIf(SlayerTaskWorldMapPoint.class::isInstance);
+
+		lastActiveStreak = SlayerTaskStreak.Off;
+		mazchnaHidden = false;
 	}
 
 	private String getTaskName(String npcText) {
@@ -423,7 +451,7 @@ public class MazchnaSkipPlugin extends Plugin {
 	}
 
 	private void setShortestPath(WorldPoint target) {
-		if (target == null){
+		if (target == null) {
 			return;
 		}
 
@@ -447,4 +475,54 @@ public class MazchnaSkipPlugin extends Plugin {
 
 		return null;
 	};
+
+	private boolean mazchnaHidden = false;
+	private SlayerTaskStreak lastActiveStreak = SlayerTaskStreak.Off;
+
+
+	//*Special thanks to Jewel and Pine for the helpful advice*//
+	@Subscribe(priority = -1)
+	public void onMenuOpened(MenuOpened event) {
+		MenuEntry[] menuEntries = client.getMenuEntries();
+		List<MenuEntry> alteredMenuEntries = new ArrayList<>();
+
+		SlayerTaskStreak streakConfig = config.getUseSkipReminder();
+
+		log.debug("onMenuOpened - streakConfig: {}, lastStreakMessage: '{}', lastActiveStreak: {}",
+				streakConfig, lastStreakMessage, lastActiveStreak);
+
+		for (MenuEntry menuEntry : menuEntries) {
+			boolean shouldRemove = false;
+
+			if (menuEntry.getOption().equals("Mazchna")) {
+				boolean streakConditionMet = false;
+
+				boolean messageMatchesTen = SLAYER_TASK_STREAK_10.matcher(lastStreakMessage).find();
+				boolean messageMatchesFifty = SLAYER_TASK_STREAK_50.matcher(lastStreakMessage).find();
+
+				if (streakConfig == SlayerTaskStreak.Ten && (messageMatchesTen || messageMatchesFifty)) {
+					streakConditionMet = true;
+					lastActiveStreak = SlayerTaskStreak.Ten;
+				} else if (streakConfig == SlayerTaskStreak.Fifty && messageMatchesFifty) {
+					streakConditionMet = true;
+					lastActiveStreak = SlayerTaskStreak.Fifty;
+				}
+
+				if (streakConditionMet) {
+					shouldRemove = true;
+					mazchnaHidden = true;
+				} else {
+					mazchnaHidden = false;
+				}
+
+				log.debug("onMenuOpened - Mazchna entry found - streakConditionMet: {}, shouldRemove: {}, streakConfig: {}, lastActiveStreak: {}",
+						streakConditionMet, shouldRemove, streakConfig, lastActiveStreak);
+			}
+
+			if (!shouldRemove) {
+				alteredMenuEntries.add(menuEntry);
+			}
+		}
+		client.setMenuEntries(alteredMenuEntries.toArray(new MenuEntry[0]));
+	}
 }
