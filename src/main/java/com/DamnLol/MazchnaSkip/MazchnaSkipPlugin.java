@@ -26,9 +26,13 @@ package com.DamnLol.MazchnaSkip;
 
 import javax.inject.Inject;
 
+import com.DamnLol.MazchnaSkip.Models.NavigationHint;
 import com.DamnLol.MazchnaSkip.Models.NpcLocation;
 import com.DamnLol.MazchnaSkip.Models.SlayerTask;
+import com.DamnLol.MazchnaSkip.Models.SweatMode;
 import com.DamnLol.MazchnaSkip.utils.AreaOutlineOverlay;
+import com.DamnLol.MazchnaSkip.utils.TeleItemOverlay;
+import com.DamnLol.MazchnaSkip.utils.POHObjectOverlay;
 import com.DamnLol.MazchnaSkip.utils.SlayerTaskOverlay;
 import com.DamnLol.MazchnaSkip.utils.SlayerTaskWorldMapPoint;
 import com.DamnLol.MazchnaSkip.utils.WorldAreaUtils;
@@ -42,11 +46,16 @@ import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
 import net.runelite.api.gameval.InterfaceID;
+import net.runelite.api.gameval.InventoryID;
+import net.runelite.api.Item;
+import net.runelite.api.ItemContainer;
 import net.runelite.api.widgets.Widget;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.npcoverlay.HighlightedNpc;
 import net.runelite.client.game.npcoverlay.NpcOverlayService;
 import net.runelite.client.events.PluginMessage;
@@ -60,6 +69,7 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -99,6 +109,26 @@ public class MazchnaSkipPlugin extends Plugin {
 
 	private String lastStreakMessage = "";
 
+	private List<Integer> navHintItemIds = Collections.emptyList();
+	private List<String> navHintMenuOptions = Collections.emptyList();
+	private List<Integer> navHintEquippedItemIds = Collections.emptyList();
+	private List<String> navHintPohObjectMenuOptions = Collections.emptyList();
+	private List<Integer> navHintPohObjectIds = Collections.emptyList();
+	private boolean playerOutsideTaskArea = false;
+	private boolean playerInPoh = false;
+	private List<String> navHintTargets = Collections.emptyList();
+
+	private int teleportCooldownTicksRemaining = 0;
+	private static final int TELEPORT_COOLDOWN_TICKS = 60;   // max ticks to suppress after teleport click
+	private static final int TELEPORT_ARRIVE_RADIUS  = 32;   // tiles from task edge = task area; suppress highlight
+	private static final int TELEPORT_CANCEL_RADIUS  = 64;   // tiles from task edge = reset highlight
+
+	private static final List<Integer> SM_POH_ITEMS = List.of(13280, 13342, 9789, 9790, 8013);
+	private static final List<Integer> SM_DESERT_ITEMS = List.of(13133, 13134, 13135, 13136);
+	private boolean sweatModeActive = false;
+	private List<Integer> sweatModeItemIds = Collections.emptyList();
+	private List<String> sweatModeMenuOptions = Collections.emptyList();
+
 	@Inject
 	private Client client;
 
@@ -124,15 +154,29 @@ public class MazchnaSkipPlugin extends Plugin {
 	private SlayerTaskOverlay slayerTaskOverlay;
 
 	@Inject
+	private TeleItemOverlay teleItemOverlay;
+
+	@Inject
+	private POHObjectOverlay POHObjectOverlay;
+
+	@Inject
+	private ClientThread clientThread;
+
+	@Inject
 	private EventBus eventBus;
 
 	@Getter
 	private SlayerTask currentSlayerTask;
 
+	@Inject
+	private ItemManager itemManager;
+
 	@Override
 	protected void startUp() {
 		overlayManager.add(slayerTaskOverlay);
 		overlayManager.add(debugAreaOutlineOverlay);
+		overlayManager.add(teleItemOverlay);
+		overlayManager.add(POHObjectOverlay);
 
 		debugAreaOutlineOverlay.setUseAlternativeOutline(true);
 	}
@@ -141,9 +185,10 @@ public class MazchnaSkipPlugin extends Plugin {
 	protected void shutDown() {
 		overlayManager.remove(slayerTaskOverlay);
 		overlayManager.remove(debugAreaOutlineOverlay);
+		overlayManager.remove(teleItemOverlay);
+		overlayManager.remove(POHObjectOverlay);
 		npcOverlayService.unregisterHighlighter(npcHighlighter);
 		worldMapPointManager.removeIf(SlayerTaskWorldMapPoint.class::isInstance);
-
 		completeTask(true);
 	}
 
@@ -159,6 +204,172 @@ public class MazchnaSkipPlugin extends Plugin {
 
 			if (taskName != null) {
 				startTask(taskName);
+			}
+		}
+
+		// Update nav hint
+		if (currentSlayerTask != null) {
+			Player player = client.getLocalPlayer();
+			if (player != null) {
+				WorldPoint playerPos = player.getWorldLocation();
+				playerInPoh = client.isInInstancedRegion();
+
+				// Check if inside the task area (with 24-tile buffer)
+				boolean inside = false;
+				locCheck:
+				for (NpcLocation loc : currentSlayerTask.getLocations()) {
+					for (WorldArea area : loc.getWorldAreas()) {
+						WorldArea buffered = new WorldArea(
+								area.getX() - 24, area.getY() - 24,
+								area.getWidth() + 48, area.getHeight() + 48,
+								area.getPlane());
+						if (buffered.contains(playerPos)) {
+							inside = true;
+							break locCheck;
+						}
+					}
+				}
+				playerOutsideTaskArea = !inside;
+
+				if (config.enableNavigationHints()) {
+					if (teleportCooldownTicksRemaining > 0) {
+						teleportCooldownTicksRemaining--;
+						// Cancel early if timer expires OR player is >64 tiles from every task area edge
+						if (teleportCooldownTicksRemaining <= 0 || isFarFromTaskArea(playerPos)) {
+							teleportCooldownTicksRemaining = 0;
+						}
+					}
+
+					boolean suppressHighlight = teleportCooldownTicksRemaining > 0
+							&& isNearTaskArea(playerPos);
+
+					if (playerOutsideTaskArea && !suppressHighlight) {
+						List<Integer> allItemIds = new ArrayList<>();
+						List<String> allMenuOptions = new ArrayList<>();
+						List<Integer> allEquippedItemIds = new ArrayList<>();
+						List<Integer> pohObjectIds = Collections.emptyList();
+						List<String> pohObjectMenuOptions = Collections.emptyList();
+
+						if (playerInPoh) {
+							pohSearch:
+							for (NpcLocation loc : currentSlayerTask.getLocations()) {
+								for (NavigationHint hint : loc.getNavigationHints()) {
+									if (!hint.getPohObjectIds().isEmpty() && hint.getItemIds().isEmpty()) {
+										pohObjectIds = hint.getPohObjectIds();
+										pohObjectMenuOptions = hint.getPohObjectMenuOptions();
+										break pohSearch;
+									}
+								}
+							}
+						}
+
+						// Find priority highlight.
+						hintSearch:
+						for (NpcLocation loc : currentSlayerTask.getLocations()) {
+							for (NavigationHint hint : loc.getNavigationHints()) {
+								if (!hint.getPohObjectIds().isEmpty() && hint.getItemIds().isEmpty()) {
+									continue;
+								}
+								// In POH - skip house teletabs and construction cape highlights
+								if (playerInPoh && (isHouseTeleOnlyHint(hint) || isConstructionCapeHint(hint))) {
+									continue;
+								}
+
+								boolean foundInInv = false;
+								boolean foundInEquip = false;
+
+								ItemContainer inv = client.getItemContainer(InventoryID.INV);
+								if (inv != null) {
+									for (Item item : inv.getItems()) {
+										if (hint.getItemIds().contains(item.getId())) {
+											foundInInv = true;
+											break;
+										}
+									}
+								}
+
+								List<Integer> checkIds = new ArrayList<>(hint.getItemIds());
+								checkIds.addAll(hint.getEquippedItemIds());
+								ItemContainer worn = client.getItemContainer(InventoryID.WORN);
+								if (worn != null) {
+									for (Item item : worn.getItems()) {
+										if (checkIds.contains(item.getId())) {
+											foundInEquip = true;
+											break;
+										}
+									}
+								}
+
+								if (foundInInv || foundInEquip) {
+									allItemIds.addAll(hint.getItemIds());
+									allMenuOptions.addAll(hint.getMenuOptions());
+									if (foundInEquip && !foundInInv) {
+										allEquippedItemIds.addAll(checkIds);
+									}
+									break hintSearch;
+								}
+							}
+						}
+
+						navHintItemIds = allItemIds;
+						navHintMenuOptions = allMenuOptions;
+						navHintEquippedItemIds = allEquippedItemIds;
+
+						boolean pohIdsChanged = !pohObjectIds.equals(navHintPohObjectIds);
+						navHintPohObjectIds = pohObjectIds;
+						navHintPohObjectMenuOptions = pohObjectMenuOptions;
+
+						teleItemOverlay.setHighlightItemIds(navHintItemIds);
+						teleItemOverlay.setEquippedItemIds(navHintEquippedItemIds);
+						teleItemOverlay.setActive(!navHintItemIds.isEmpty() || !navHintEquippedItemIds.isEmpty());
+
+						POHObjectOverlay.setHighlightObjectIds(navHintPohObjectIds);
+						if (!navHintPohObjectIds.isEmpty()) {
+							if (pohIdsChanged) {
+								POHObjectOverlay.clearTracked();
+								List<String> uiTexts = navHintPohObjectMenuOptions.isEmpty()
+										? Collections.emptyList()
+										: List.of(navHintPohObjectMenuOptions.get(0));
+								POHObjectOverlay.setPohUiTargetTexts(uiTexts);
+							}
+							scanSceneForPohObjects();
+						}
+						POHObjectOverlay.setActive(!navHintPohObjectIds.isEmpty());
+					} else {
+						teleItemOverlay.setActive(false);
+						POHObjectOverlay.setActive(false);
+						POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
+						POHObjectOverlay.clearTracked();
+					}
+				}
+			}
+		} else {
+			playerOutsideTaskArea = false;
+			playerInPoh = client.isInInstancedRegion();
+			if (sweatModeActive && config.getSweatMode() != SweatMode.Off
+					&& config.enableNavigationHints() && !playerInPoh) {
+				List<Integer> found = new ArrayList<>();
+				ItemContainer inv = client.getItemContainer(InventoryID.INV);
+				ItemContainer worn = client.getItemContainer(InventoryID.WORN);
+				for (int id : sweatModeItemIds) {
+					boolean match = false;
+					if (inv != null) {
+						for (Item item : inv.getItems()) {
+							if (item.getId() == id) { match = true; break; }
+						}
+					}
+					if (!match && worn != null) {
+						for (Item item : worn.getItems()) {
+							if (item.getId() == id) { match = true; break; }
+						}
+					}
+					if (match) { found.add(id); break; }
+				}
+				teleItemOverlay.setHighlightItemIds(found);
+				teleItemOverlay.setEquippedItemIds(Collections.emptyList());
+				teleItemOverlay.setActive(!found.isEmpty());
+			} else {
+				teleItemOverlay.setActive(false);
 			}
 		}
 	}
@@ -202,7 +413,7 @@ public class MazchnaSkipPlugin extends Plugin {
 		} else {
 
 			if (chatMessage.startsWith("You've completed") && chatMessage.toLowerCase().contains("slayer master")) {
-				completeTask(false); // This will clear lastStreakMessage, but we want to keep it
+				completeTask(false);
 			}
 		}
 	}
@@ -214,42 +425,44 @@ public class MazchnaSkipPlugin extends Plugin {
 			return;
 		}
 
-		// Log when the streak config changes
-		if (event.getKey().equals("useSkipReminder")) {
-			SlayerTaskStreak newStreak = config.getUseSkipReminder();
-			log.debug("onConfigChanged - useSkipReminder changed to: {}", newStreak);
-		}
-
-		// Set a dummy task
-		if (event.getKey().equals("debugTask")) {
-			if (event.getNewValue() == null) {
-				return;
+		clientThread.invokeLater(() -> {
+			// Log when the streak config changes
+			if (event.getKey().equals("useSkipReminder")) {
+				SlayerTaskStreak newStreak = config.getUseSkipReminder();
+				log.debug("onConfigChanged - useSkipReminder changed to: {}", newStreak);
 			}
 
-			// Always clear task to reset area outline/tagged NPC's
-			this.completeTask();
+			// Set a dummy task
+			if (event.getKey().equals("debugTask")) {
+				if (event.getNewValue() == null) {
+					return;
+				}
 
-			if (!event.getNewValue().equals("None")) {
-				this.startTask(event.getNewValue().toLowerCase().replace("_", " "));
+				// Always clear task to reset area outline/tagged NPC's
+				this.completeTask();
+
+				if (!event.getNewValue().equals("None")) {
+					this.startTask(event.getNewValue().toLowerCase().replace("_", " "));
+				}
 			}
-		}
 
-		// Re-select the slayer task, so it re-draws the outline if enabled or removes the outline when disabled
-		if (event.getKey().equals("enableSlayerAreaOutline")) {
-			if (this.currentSlayerTask != null) {
-				this.startTask(currentSlayerTask.getName());
+			// Re-select the slayer task, so it re-draws the outline if enabled or removes the outline when disabled
+			if (event.getKey().equals("enableSlayerAreaOutline")) {
+				if (this.currentSlayerTask != null) {
+					this.startTask(currentSlayerTask.getName());
+				}
 			}
-		}
 
-		// Set the debug WorldPoint values to null to remove the outline
-		if (event.getKey().equals("enableWorldPointSelector")) {
-			if (event.getNewValue() != null && event.getNewValue().equals("false")) {
-				debugAreaOutlineOverlay.setAreas(null);
+			// Set the debug WorldPoint values to null to remove the outline
+			if (event.getKey().equals("enableWorldPointSelector")) {
+				if (event.getNewValue() != null && event.getNewValue().equals("false")) {
+					debugAreaOutlineOverlay.setAreas(null);
+				}
 			}
-		}
 
-		// Rebuild the NPC highlighter with the updated settings
-		npcOverlayService.rebuild();
+			// Rebuild the NPC highlighter with the updated settings
+			npcOverlayService.rebuild();
+		});
 	}
 
 	@Subscribe
@@ -274,18 +487,103 @@ public class MazchnaSkipPlugin extends Plugin {
 	}
 
 	@Subscribe
-	public void onMenuEntryAdded(MenuEntryAdded menuEntryAdded) {
-		if (!config.enableWorldPointSelector()) {
+	public void onGameObjectSpawned(GameObjectSpawned event) {
+		POHObjectOverlay.trackObject(event.getGameObject());
+	}
+
+	@Subscribe
+	public void onGameObjectDespawned(GameObjectDespawned event) {
+		POHObjectOverlay.untrackObject(event.getGameObject());
+	}
+
+	@Subscribe
+	public void onWallObjectSpawned(WallObjectSpawned event) {
+		POHObjectOverlay.trackWallObject(event.getWallObject());
+	}
+
+	@Subscribe
+	public void onWallObjectDespawned(WallObjectDespawned event) {
+		POHObjectOverlay.untrackWallObject(event.getWallObject());
+	}
+
+	@Subscribe
+	public void onDecorativeObjectSpawned(DecorativeObjectSpawned event) {
+		POHObjectOverlay.trackDecorativeObject(event.getDecorativeObject());
+	}
+
+	@Subscribe
+	public void onDecorativeObjectDespawned(DecorativeObjectDespawned event) {
+		POHObjectOverlay.untrackDecorativeObject(event.getDecorativeObject());
+	}
+
+	@Subscribe
+	public void onMenuEntryAdded(MenuEntryAdded event) {
+		if (!config.enableWorldPointSelector() && !playerOutsideTaskArea && !sweatModeActive) {
 			return;
 		}
 
-		// Only add the menu entry when you can walk, so it doesn't get added when you are right-clicking in the bank
-		if (menuEntryAdded.getOption().equals("Walk here")) {
+		if (playerOutsideTaskArea && config.enableNavigationHints() && !navHintMenuOptions.isEmpty()) {
+			String rawOption = Text.removeTags(event.getOption());
+			String hexColor = String.format("%06x", config.getTeleColor().getRGB() & 0xFFFFFF);
+			String rawTarget = Text.removeTags(event.getTarget());
+
+			for (String hintOption : navHintMenuOptions) {
+				if (rawOption.equals(hintOption)) {
+					if (!navHintTargets.isEmpty() && !rawTarget.isEmpty()
+							&& navHintTargets.stream().noneMatch(rawTarget::contains)) {
+						break;
+					}
+					String current = event.getMenuEntry().getOption();
+					if (!current.contains(hexColor)) {
+						event.getMenuEntry().setOption("<col=" + hexColor + ">" + rawOption + "</col>");
+						event.getMenuEntry().setTarget("<col=" + hexColor + ">" + rawTarget + "</col>");
+					}
+					break;
+				}
+			}
+		}
+
+		if (sweatModeActive && config.getSweatMode() != SweatMode.Off
+				&& config.enableNavigationHints() && !sweatModeMenuOptions.isEmpty()) {
+			String rawOption = Text.removeTags(event.getOption());
+			String rawTarget = Text.removeTags(event.getTarget());
+			String hexColor = String.format("%06x", config.getTeleColor().getRGB() & 0xFFFFFF);
+			boolean hasItem = false;
+			ItemContainer inv = client.getItemContainer(InventoryID.INV);
+			if (inv != null) {
+				for (Item item : inv.getItems()) {
+					if (sweatModeItemIds.contains(item.getId())) { hasItem = true; break; }
+				}
+			}
+			if (!hasItem) {
+				ItemContainer worn = client.getItemContainer(InventoryID.WORN);
+				if (worn != null) {
+					for (Item item : worn.getItems()) {
+						if (sweatModeItemIds.contains(item.getId())) { hasItem = true; break; }
+					}
+				}
+			}
+			if (hasItem) {
+				for (String opt : sweatModeMenuOptions) {
+					if (rawOption.equals(opt)) {
+						String current = event.getMenuEntry().getOption();
+						if (!current.contains(hexColor)) {
+							event.getMenuEntry().setOption("<col=" + hexColor + ">" + rawOption + "</col>");
+							event.getMenuEntry().setTarget("<col=" + hexColor + ">" + rawTarget + "</col>");
+						}
+						break;
+					}
+				}
+			}
+		}
+
+		// WorldPoint selector debug menu entries
+		if (config.enableWorldPointSelector() && event.getOption().equals("Walk here")) {
 			// Add options in reverse, so it shows up correctly in the right click menu
 			client.getMenu()
 					.createMenuEntry(-1)
 					.setOption(DEBUG_MENU_RESET_WORLD_POINTS)
-					.setTarget(menuEntryAdded.getTarget())
+					.setTarget(event.getTarget())
 					.setType(MenuAction.RUNELITE)
 					.onClick(menuEntry -> {
 						debugWorldPointOne = null;
@@ -297,7 +595,7 @@ public class MazchnaSkipPlugin extends Plugin {
 			client.getMenu()
 					.createMenuEntry(-1)
 					.setOption(DEBUG_MENU_COPY_TO_CLIPBOARD)
-					.setTarget(menuEntryAdded.getTarget())
+					.setTarget(event.getTarget())
 					.setType(MenuAction.RUNELITE)
 					.onClick(menuEntry -> {
 						if (debugWorldPointOne != null && debugWorldPointTwo != null) {
@@ -315,21 +613,40 @@ public class MazchnaSkipPlugin extends Plugin {
 			client.getMenu()
 					.createMenuEntry(-1)
 					.setOption(DEBUG_MENU_WORLD_POINT_TWO)
-					.setTarget(menuEntryAdded.getTarget())
+					.setTarget(event.getTarget())
 					.setType(MenuAction.RUNELITE)
-					.setIdentifier(menuEntryAdded.getIdentifier());
+					.setIdentifier(event.getIdentifier());
 
 			client.getMenu()
 					.createMenuEntry(-1)
 					.setOption(DEBUG_MENU_WORLD_POINT_ONE)
-					.setTarget(menuEntryAdded.getTarget())
+					.setTarget(event.getTarget())
 					.setType(MenuAction.RUNELITE)
-					.setIdentifier(menuEntryAdded.getIdentifier());
+					.setIdentifier(event.getIdentifier());
 		}
 	}
 
 	@Subscribe
 	public void onMenuOptionClicked(MenuOptionClicked event) {
+		if (playerOutsideTaskArea && config.enableNavigationHints()) {
+			String rawOption = Text.removeTags(event.getMenuOption());
+			boolean isNavHintClick = navHintMenuOptions.contains(rawOption)
+					|| navHintPohObjectMenuOptions.contains(rawOption);
+			if (isNavHintClick) {
+				teleportCooldownTicksRemaining = TELEPORT_COOLDOWN_TICKS;
+			}
+		}
+
+		if (sweatModeActive && config.getSweatMode() != SweatMode.Off) {
+			String rawOption = Text.removeTags(event.getMenuOption());
+			if (sweatModeMenuOptions.contains(rawOption)) {
+				sweatModeActive = false;
+				sweatModeItemIds = Collections.emptyList();
+				sweatModeMenuOptions = Collections.emptyList();
+				teleItemOverlay.setActive(false);
+			}
+		}
+
 		if (!event.getMenuOption().equals(DEBUG_MENU_WORLD_POINT_ONE) && !event.getMenuOption().equals(DEBUG_MENU_WORLD_POINT_TWO)) {
 			return;
 		}
@@ -366,6 +683,10 @@ public class MazchnaSkipPlugin extends Plugin {
 	private void startTask(String taskName) {
 		lastStreakMessage = "";
 		lastActiveStreak = SlayerTaskStreak.Off;
+		teleportCooldownTicksRemaining = 0;
+		sweatModeActive = false;
+		sweatModeItemIds = Collections.emptyList();
+		sweatModeMenuOptions = Collections.emptyList();
 
 		SlayerTask lookupSlayerTask = SlayerTaskRegistry.getSlayerTaskByNpcName(taskName.toLowerCase());
 
@@ -414,11 +735,66 @@ public class MazchnaSkipPlugin extends Plugin {
 
 				npcOverlayService.registerHighlighter(npcHighlighter);
 			}
+
+			// Get nav - inventory first then equipment
+			List<Integer> allItemIds = new ArrayList<>();
+			List<String> allMenuOptions = new ArrayList<>();
+			List<Integer> allEquippedItemIds = new ArrayList<>();
+
+			outer:
+			for (NpcLocation loc : currentSlayerTask.getLocations()) {
+				for (NavigationHint hint : loc.getNavigationHints()) {
+					// Check inventory for any tele item
+					ItemContainer inventory = client.getItemContainer(InventoryID.INV);
+					if (inventory != null) {
+						for (Item item : inventory.getItems()) {
+							if (hint.getItemIds().contains(item.getId())) {
+								allItemIds.addAll(hint.getItemIds());
+								allMenuOptions.addAll(hint.getMenuOptions());
+								break outer;
+							}
+						}
+					}
+
+					// Check equipment for any tele item
+					ItemContainer equipment = client.getItemContainer(InventoryID.WORN);
+					if (equipment != null) {
+						List<Integer> idsToCheckInEquipment = new ArrayList<>(hint.getItemIds());
+						idsToCheckInEquipment.addAll(hint.getEquippedItemIds());
+						for (Item item : equipment.getItems()) {
+							if (idsToCheckInEquipment.contains(item.getId())) {
+								allItemIds.addAll(hint.getItemIds());
+								allMenuOptions.addAll(hint.getMenuOptions());
+								allEquippedItemIds.addAll(idsToCheckInEquipment);
+								break outer;
+							}
+						}
+					}
+				}
+			}
+			navHintItemIds = allItemIds;
+			navHintMenuOptions = allMenuOptions;
+			navHintEquippedItemIds = allEquippedItemIds;
+			teleItemOverlay.setHighlightItemIds(navHintItemIds);
+			teleItemOverlay.setEquippedItemIds(navHintEquippedItemIds);
+
+			List<String> allTargets = new ArrayList<>();
+			for (NpcLocation loc : currentSlayerTask.getLocations()) {
+				for (NavigationHint hint : loc.getNavigationHints()) {
+					for (int id : hint.getItemIds()) {
+						String name = itemManager.getItemComposition(id).getName();
+						if (name != null) allTargets.add(name);
+					}
+				}
+			}
+			navHintTargets = allTargets;
 		}
+		log.debug("startTask complete - navHintItemIds: {}, playerOutsideTaskArea: {}", navHintItemIds, playerOutsideTaskArea);
 	}
 
 	private void completeTask() {
 		completeTask(false);
+		navHintTargets = Collections.emptyList();
 	}
 
 	private void completeTask(boolean resetMazchnaHidden) {
@@ -432,8 +808,99 @@ public class MazchnaSkipPlugin extends Plugin {
 
 		worldMapPointManager.removeIf(SlayerTaskWorldMapPoint.class::isInstance);
 
+		navHintItemIds = Collections.emptyList();
+		navHintMenuOptions = Collections.emptyList();
+		navHintEquippedItemIds = Collections.emptyList();
+		navHintPohObjectIds = Collections.emptyList();
+		navHintPohObjectMenuOptions = Collections.emptyList();
+		teleportCooldownTicksRemaining = 0;
+		teleItemOverlay.setHighlightItemIds(Collections.emptyList());
+		teleItemOverlay.setEquippedItemIds(Collections.emptyList());
+		teleItemOverlay.setActive(false);
+		POHObjectOverlay.setHighlightObjectIds(Collections.emptyList());
+		POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
+		POHObjectOverlay.setActive(false);
+		POHObjectOverlay.clearTracked();
+		playerOutsideTaskArea = false;
+
+		// Clear the shortest path when a task ends
+		setShortestPath(null);
+
 		lastActiveStreak = SlayerTaskStreak.Off;
 		mazchnaHidden = false;
+
+		SweatMode sweatMode = config.getSweatMode();
+		if (sweatMode == SweatMode.PoH_Tele) {
+			sweatModeActive = true;
+			sweatModeItemIds = SM_POH_ITEMS;
+			sweatModeMenuOptions = List.of("Teleports", "Tele to POH", "Teleport", "Break");
+		} else if (sweatMode == SweatMode.Desert_4) {
+			sweatModeActive = true;
+			sweatModeItemIds = SM_DESERT_ITEMS;
+			sweatModeMenuOptions = List.of("Nardah");
+		} else {
+			sweatModeActive = false;
+			sweatModeItemIds = Collections.emptyList();
+			sweatModeMenuOptions = Collections.emptyList();
+		}
+	}
+
+	private void scanSceneForPohObjects() {
+		Player player = client.getLocalPlayer();
+		if (player == null) return;
+		Scene scene = player.getWorldView().getScene();
+		Tile[][][] tiles = scene.getTiles();
+		int matched = 0;
+		for (Tile[][] value : tiles) {
+			for (Tile[] item : value) {
+				for (Tile tile : item) {
+					if (tile == null) continue;
+					for (GameObject obj : tile.getGameObjects()) {
+						if (obj != null) {
+							if (navHintPohObjectIds.contains(obj.getId())) matched++;
+							POHObjectOverlay.trackObject(obj);
+						}
+					}
+					if (tile.getWallObject() != null) {
+						if (navHintPohObjectIds.contains(tile.getWallObject().getId())) matched++;
+						POHObjectOverlay.trackWallObject(tile.getWallObject());
+					}
+					if (tile.getDecorativeObject() != null) {
+						if (navHintPohObjectIds.contains(tile.getDecorativeObject().getId())) matched++;
+						POHObjectOverlay.trackDecorativeObject(tile.getDecorativeObject());
+					}
+					if (tile.getGroundObject() != null) {
+						if (navHintPohObjectIds.contains(tile.getGroundObject().getId())) matched++;
+						POHObjectOverlay.trackGroundObject(tile.getGroundObject());
+					}
+				}
+			}
+		}
+		log.debug("scanSceneForPohObjects: looking for IDs={}, matched {} objects by base ID", navHintPohObjectIds, matched);
+	}
+
+	private boolean isFarFromTaskArea(WorldPoint pos) {
+		if (currentSlayerTask == null) return true;
+		for (NpcLocation loc : currentSlayerTask.getLocations()) {
+			for (WorldArea area : loc.getWorldAreas()) {
+				if (area.distanceTo(pos) <= TELEPORT_CANCEL_RADIUS) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	private boolean isNearTaskArea(WorldPoint pos) {
+		if (currentSlayerTask == null) return false;
+		for (NpcLocation loc : currentSlayerTask.getLocations()) {
+			for (WorldArea area : loc.getWorldAreas()) {
+				if (area.distanceTo(pos) <= TELEPORT_ARRIVE_RADIUS) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private String getTaskName(String npcText) {
@@ -451,13 +918,22 @@ public class MazchnaSkipPlugin extends Plugin {
 	}
 
 	private void setShortestPath(WorldPoint target) {
-		if (target == null) {
-			return;
-		}
-
 		Map<String, Object> data = new HashMap<>();
-		data.put("target", target);
+		if (target != null) {
+			data.put("target", target);
+		}
+		// Posting without a "target" key signals the Shortest Path plugin to clear its path
 		eventBus.post(new PluginMessage("shortestpath", "path", data));
+	}
+
+	private boolean isHouseTeleOnlyHint(NavigationHint hint) {
+		List<String> opts = hint.getMenuOptions();
+		return opts != null && !opts.isEmpty() && opts.get(0).equals("Break");
+	}
+
+	private boolean isConstructionCapeHint(NavigationHint hint) {
+		List<String> opts = hint.getMenuOptions();
+		return opts != null && opts.contains("Tele to POH");
 	}
 
 	public Function<NPC, HighlightedNpc> npcHighlighter = (n) -> {
@@ -524,5 +1000,37 @@ public class MazchnaSkipPlugin extends Plugin {
 			}
 		}
 		client.setMenuEntries(alteredMenuEntries.toArray(new MenuEntry[0]));
+
+		if (playerOutsideTaskArea && config.enableNavigationHints() && !navHintPohObjectMenuOptions.isEmpty()
+				&& !navHintPohObjectIds.isEmpty()) {
+			String hexColor = String.format("%06x", config.getTeleColor().getRGB() & 0xFFFFFF);
+			MenuEntry[] entries = client.getMenuEntries();
+
+			// matches target object IDs
+			boolean menuIsForOurObject = false;
+			for (MenuEntry entry : entries) {
+				if (navHintPohObjectIds.contains(entry.getIdentifier())) {
+					menuIsForOurObject = true;
+					break;
+				}
+			}
+
+			if (menuIsForOurObject) {
+				outer:
+				for (String pohOption : navHintPohObjectMenuOptions) {
+					for (MenuEntry entry : entries) {
+						String rawOpt = Text.removeTags(entry.getOption());
+						if (rawOpt.equals(pohOption)) {
+							if (!entry.getOption().contains(hexColor)) {
+								String rawTgt = Text.removeTags(entry.getTarget());
+								entry.setOption("<col=" + hexColor + ">" + rawOpt + "</col>");
+								entry.setTarget("<col=" + hexColor + ">" + rawTgt + "</col>");
+							}
+							break outer;
+						}
+					}
+				}
+			}
+		}
 	}
 }

@@ -25,25 +25,36 @@
 package com.DamnLol.MazchnaSkip.Models;
 
 import lombok.Getter;
-import net.runelite.api.coords.WorldArea;
 
 import java.util.Collections;
 import java.util.List;
 
 @Getter
-public class NpcLocation {
-    private final String name;
-    private final String[] teleports;
-    private final List<WorldArea> worldAreas;
-    private final List<NavigationHint> navigationHints;
-    public NpcLocation(String name, List<WorldArea> worldAreas, String[] teleports) {
-        this(name, worldAreas, teleports, Collections.emptyList());
+public class NavigationHint {
+
+    private final List<Integer> itemIds;
+    private final List<String> menuOptions;
+    private final List<Integer> equippedItemIds;
+    private final List<Integer> pohObjectIds;
+    private final List<String> pohObjectMenuOptions;
+
+    public NavigationHint(List<Integer> itemIds, List<String> menuOptions) {
+        this(itemIds, menuOptions, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
     }
 
-    public NpcLocation(String name, List<WorldArea> worldAreas, String[] teleports, List<NavigationHint> navigationHints) {
-        this.name = name;
-        this.worldAreas = worldAreas;
-        this.teleports = teleports;
-        this.navigationHints = navigationHints != null ? navigationHints : Collections.emptyList();
+    public NavigationHint(List<Integer> itemIds, List<String> menuOptions, List<Integer> equippedItemIds) {
+        this(itemIds, menuOptions, equippedItemIds, Collections.emptyList(), Collections.emptyList());
+    }
+
+    public NavigationHint(List<Integer> itemIds, List<String> menuOptions, List<Integer> equippedItemIds, List<Integer> pohObjectIds, List<String> pohObjectMenuOptions) {
+        this.itemIds = itemIds != null ? itemIds : Collections.emptyList();
+        this.menuOptions = menuOptions != null ? menuOptions : Collections.emptyList();
+        this.equippedItemIds = equippedItemIds != null ? equippedItemIds : Collections.emptyList();
+        this.pohObjectIds = pohObjectIds != null ? pohObjectIds : Collections.emptyList();
+        this.pohObjectMenuOptions = pohObjectMenuOptions != null ? pohObjectMenuOptions : Collections.emptyList();
+    }
+
+    public int getPohObjectId() {
+        return pohObjectIds.isEmpty() ? -1 : pohObjectIds.get(0);
     }
 }

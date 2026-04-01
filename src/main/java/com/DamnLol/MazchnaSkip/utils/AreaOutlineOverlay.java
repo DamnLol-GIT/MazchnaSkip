@@ -26,6 +26,7 @@ package com.DamnLol.MazchnaSkip.utils;
 
 
 import com.DamnLol.MazchnaSkip.MazchnaSkipConfig;
+import lombok.Setter;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
@@ -48,7 +49,9 @@ import java.util.List;
 public class AreaOutlineOverlay extends Overlay {
     private final Client client;
     private final MazchnaSkipConfig config;
+    @Setter
     private List<WorldArea> areas;
+    @Setter
     private boolean useAlternativeOutline;
 
     @Inject
@@ -58,14 +61,6 @@ public class AreaOutlineOverlay extends Overlay {
 
         setPosition(OverlayPosition.DYNAMIC);
         setLayer(OverlayLayer.ABOVE_SCENE);
-    }
-
-    public void setAreas(List<WorldArea> areas) {
-        this.areas = areas;
-    }
-
-    public void setUseAlternativeOutline(boolean useAlternativeOutline) {
-        this.useAlternativeOutline = useAlternativeOutline;
     }
 
     @Override

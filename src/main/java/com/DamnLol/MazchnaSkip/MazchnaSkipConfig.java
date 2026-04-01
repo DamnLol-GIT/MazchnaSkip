@@ -24,6 +24,7 @@
  */
 package com.DamnLol.MazchnaSkip;
 
+import com.DamnLol.MazchnaSkip.Models.SweatMode;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
@@ -99,6 +100,17 @@ public interface MazchnaSkipConfig extends Config {
         return SlayerTaskStreak.Off;
     }
 
+    @ConfigItem(
+            position = 5,
+            keyName = "enableNavigationHints",
+            name = "Enable Teleport Highlights",
+            description = "Highlights the teleport item and relevant menu option.",
+            section = generalSettings
+    )
+    default boolean enableNavigationHints() {
+        return true;
+    }
+
 
     // Highlight settings
     @ConfigSection(
@@ -171,9 +183,48 @@ public interface MazchnaSkipConfig extends Config {
         return Color.decode("#2EDACA");
     }
 
-    // Debug settings
+    // Misc settings
     @ConfigSection(
             position = 3,
+            name = "Misc",
+            description = "Miscellaneous settings"
+    )
+    String miscSettings = "miscSettings";
+
+    @ConfigItem(
+            position = 0,
+            keyName = "teleColor",
+            name = "Teleport Highlights",
+            description = "Color used to highlight the teleport item and menu option.",
+            section = miscSettings
+    )
+    default Color getTeleColor() {
+        return Color.decode("#F44BD8");
+    }
+
+    @ConfigSection(
+            position = 4,
+            name = "Sweat Mode (Work In Progress)",
+            closedByDefault = true,
+            description = "Max Efficiency for the Sweats"
+    )
+    String sweatModeSettings = "sweatModeSettings";
+
+    //SweatMode = *Testing cannon placements for max k/ph and optimal tiles.*
+    @ConfigItem(
+            position = 0,
+            keyName = "sweatMode",
+            name = "PoH/Desert between tasks",
+            description = "Highlights proper teleport after task to restore pray/run/hp.",
+            section = sweatModeSettings
+    )
+    default SweatMode getSweatMode() {
+        return SweatMode.Off;
+    }
+
+    // Debug settings
+    @ConfigSection(
+            position = 5,
             name = "Debugging",
             closedByDefault = true,
             description = "Debug settings"
