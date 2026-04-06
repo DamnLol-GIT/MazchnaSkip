@@ -581,7 +581,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2828, 3477, 0),
                                             new WorldPoint(2865, 3519, 0)
                                     )
-                            ), new String[]{"Royal Seed Pod to Gnome Glider: Sindarpos", "Spirit Tree to Glider"},
+                            ), new String[]{"Royal Seed Pod to Gnome Glider: Sindarpos", "Spirit Tree to Gnome Stronghold glider"},
                                     seedPodChain())
                     ))
             ),
