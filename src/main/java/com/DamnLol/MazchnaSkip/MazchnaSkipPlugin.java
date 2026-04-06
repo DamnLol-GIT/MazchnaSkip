@@ -1096,7 +1096,6 @@ public class MazchnaSkipPlugin extends Plugin {
 				}
 			}
 		}
-		log.debug("scanSceneForPohObjects: looking for IDs={}, matched {} objects by base ID", navHintPohObjectIds, matched);
 	}
 
 	private boolean isFarFromTaskArea(WorldPoint pos) {
