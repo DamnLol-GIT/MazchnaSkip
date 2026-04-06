@@ -203,21 +203,14 @@ public class MazchnaSkipPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick) {
-		// Track fairy ring Travel Log panel open/close to manage overlay highlight state
 		if (config.enableNavigationHints() && navHintFairyRingCode != null) {
 			Widget fairyLog = client.getWidget(FAIRY_RING_LOG_CONTENTS);
-			Widget[] rows = fairyLog != null ? fairyLog.getDynamicChildren() : null;
-			boolean panelOpen = rows != null && rows.length > 0;
+			boolean panelOpen = fairyLog != null && !fairyLog.isHidden();
 			if (panelOpen && !fairyRingPanelHighlightActive) {
-				POHObjectOverlay.setPohUiTargetTexts(List.of(navHintFairyRingCode));
-				POHObjectOverlay.setActive(true);
 				fairyRingPanelHighlightActive = true;
-			} else if (!panelOpen && fairyRingPanelHighlightActive) {
+				scrollFairyRingPanel(navHintFairyRingCode);
+			} else if (!panelOpen) {
 				fairyRingPanelHighlightActive = false;
-				if (navHintPohObjectIds.isEmpty()) {
-					POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
-					POHObjectOverlay.setActive(false);
-				}
 			}
 		}
 
@@ -419,24 +412,21 @@ public class MazchnaSkipPlugin extends Plugin {
 							if (pohIdsChanged) {
 								POHObjectOverlay.clearTracked();
 							}
-							List<String> uiTexts = navHintPohObjectMenuOptions.isEmpty()
+							boolean isFairyRingObject = !Collections.disjoint(navHintPohObjectIds, FAIRY_RING_IDS);
+							List<String> uiTexts = isFairyRingObject && navHintFairyRingCode != null
+									? List.of(navHintFairyRingCode)
+									: (navHintPohObjectMenuOptions.isEmpty()
 									? Collections.emptyList()
-									: List.of(navHintPohObjectMenuOptions.get(0));
-							if (!fairyRingPanelHighlightActive) {
-								POHObjectOverlay.setPohUiTargetTexts(uiTexts);
-							}
+									: List.of(navHintPohObjectMenuOptions.get(0)));
+							POHObjectOverlay.setPohUiTargetTexts(uiTexts);
 							scanSceneForPohObjects();
 						}
-						if (!fairyRingPanelHighlightActive) {
-							POHObjectOverlay.setActive(!navHintPohObjectIds.isEmpty());
-						}
+						POHObjectOverlay.setActive(!navHintPohObjectIds.isEmpty());
 					} else {
 						teleItemOverlay.setActive(false);
-						if (!fairyRingPanelHighlightActive) {
-							POHObjectOverlay.setActive(false);
-							POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
-							POHObjectOverlay.clearTracked();
-						}
+						POHObjectOverlay.setActive(false);
+						POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
+						POHObjectOverlay.clearTracked();
 					}
 				}
 			}
@@ -825,17 +815,16 @@ public class MazchnaSkipPlugin extends Plugin {
 				}
 			}
 
-			// Extract fairy ring code early — only from pure fairy ring hints,
-			// not from spirit tree+fairy ring combo hints used for spirit tree tasks
 			navHintFairyRingCode = null;
 			for (NpcLocation loc : currentSlayerTask.getLocations()) {
 				for (NavigationHint hint : loc.getNavigationHints()) {
 					if (!hint.getPohObjectIds().isEmpty() && hint.getItemIds().isEmpty()
-							&& !Collections.disjoint(hint.getPohObjectIds(), FAIRY_RING_IDS)
-							&& Collections.disjoint(hint.getPohObjectIds(), SPIRIT_TREE_IDS)) {
+							&& !Collections.disjoint(hint.getPohObjectIds(), FAIRY_RING_IDS)) {
 						List<String> opts = hint.getPohObjectMenuOptions();
-						if (!opts.isEmpty()) navHintFairyRingCode = opts.get(0);
-						break;
+						if (!opts.isEmpty() && opts.get(0).matches("[A-Z]{3}")) {
+							navHintFairyRingCode = opts.get(0);
+							break;
+						}
 					}
 				}
 				if (navHintFairyRingCode != null) break;
@@ -1004,10 +993,22 @@ public class MazchnaSkipPlugin extends Plugin {
 				for (Tile tile : row) {
 					if (tile == null) continue;
 					for (GameObject obj : tile.getGameObjects()) {
-						if (obj != null && objectIds.contains(obj.getId())) {
-							int d = obj.getWorldLocation().distanceTo(playerPos);
-							if (d < best) best = d;
+						if (obj == null) continue;
+						int d = Integer.MAX_VALUE;
+						if (objectIds.contains(obj.getId())) {
+							d = obj.getWorldLocation().distanceTo(playerPos);
+						} else {
+							ObjectComposition comp = client.getObjectDefinition(obj.getId());
+							if (comp != null && comp.getImpostorIds() != null) {
+								for (int impostorId : comp.getImpostorIds()) {
+									if (objectIds.contains(impostorId)) {
+										d = obj.getWorldLocation().distanceTo(playerPos);
+										break;
+									}
+								}
+							}
 						}
+						if (d < best) best = d;
 					}
 					if (tile.getWallObject() != null && objectIds.contains(tile.getWallObject().getId())) {
 						int d = tile.getWallObject().getWorldLocation().distanceTo(playerPos);

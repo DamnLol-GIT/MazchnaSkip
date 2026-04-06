@@ -36,6 +36,7 @@ import net.runelite.api.TileObject;
 import net.runelite.api.WallObject;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.widgets.Widget;
+import net.runelite.api.gameval.InterfaceID;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -69,7 +70,7 @@ public class POHObjectOverlay extends Overlay {
         this.client = client;
         this.config = config;
         setPosition(OverlayPosition.DYNAMIC);
-        setLayer(OverlayLayer.ABOVE_SCENE);
+        setLayer(OverlayLayer.ABOVE_WIDGETS);
     }
 
 
@@ -140,19 +141,22 @@ public class POHObjectOverlay extends Overlay {
                     graphics.draw(clickbox);
                 } catch (Exception e) {
                     LocalPoint lp = obj.getLocalLocation();
-                    Polygon tilePoly = Perspective.getCanvasTilePoly(client, lp);
-                    if (tilePoly != null) {
-                        graphics.setColor(fill);
-                        graphics.fill(tilePoly);
-                        graphics.setColor(border);
-                        graphics.setStroke(new BasicStroke(2f));
-                        graphics.draw(tilePoly);
+                    if (lp != null) {
+                        Polygon tilePoly = Perspective.getCanvasTilePoly(client, lp);
+                        if (tilePoly != null) {
+                            graphics.setColor(fill);
+                            graphics.fill(tilePoly);
+                            graphics.setColor(border);
+                            graphics.setStroke(new BasicStroke(2f));
+                            graphics.draw(tilePoly);
+                        }
                     }
                 }
                 continue;
             }
 
             LocalPoint lp = obj.getLocalLocation();
+            if (lp == null) continue;
 
             Polygon tilePoly = Perspective.getCanvasTilePoly(client, lp);
             if (tilePoly == null) continue;
@@ -170,18 +174,49 @@ public class POHObjectOverlay extends Overlay {
             return;
         }
 
-        Widget[] roots = client.getWidgetRoots();
-        if (roots == null) {
-            return;
-        }
-
         Color fill = new Color(color.getRed(), color.getGreen(), color.getBlue(), 60);
         Color border = new Color(color.getRed(), color.getGreen(), color.getBlue(), 200);
 
-        for (Widget root : roots) {
-            if (root == null || root.isHidden()) {
-                continue;
+        Widget fairyLogContents = client.getWidget(InterfaceID.FairyringsLog.CONTENTS);
+        if (fairyLogContents != null) {
+            Widget[] rows = fairyLogContents.getDynamicChildren();
+            if (rows != null) {
+                for (Widget row : rows) {
+                    if (row == null) continue;
+                    String rawText = row.getText();
+                    if (rawText == null || rawText.isEmpty()) continue;
+                    String cleanedNoSpaces = Text.removeTags(rawText).trim().replaceAll("\\s+", "");
+                    for (String target : pohUiTargetTexts) {
+                        if (cleanedNoSpaces.contains(target.replaceAll("\\s+", ""))) {
+                            Rectangle containerBounds = fairyLogContents.getBounds();
+                            if (containerBounds != null && containerBounds.width > 0) {
+                                int x = containerBounds.x;
+                                int y = containerBounds.y + row.getRelativeY() - fairyLogContents.getScrollY();
+                                int w = containerBounds.width;
+                                int h = Math.max(row.getHeight(), 28);
+                                // Only draw if within the visible container area
+                                if (y >= containerBounds.y && y < containerBounds.y + containerBounds.height) {
+                                    graphics.setColor(fill);
+                                    graphics.fillRect(x, y, w, h);
+                                    graphics.setColor(border);
+                                    graphics.setStroke(new BasicStroke(1.5f));
+                                    graphics.drawRect(x, y, w, h);
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
             }
+            return;
+        }
+
+        // Fall back to scanning all roots for other POH UI
+        Widget[] roots = client.getWidgetRoots();
+        if (roots == null) return;
+
+        for (Widget root : roots) {
+            if (root == null || root.isHidden()) continue;
             scanWidget(graphics, root, fill, border);
         }
     }
@@ -194,15 +229,18 @@ public class POHObjectOverlay extends Overlay {
         String rawText = widget.getText();
         if (rawText != null && !rawText.isEmpty()) {
             String cleaned = Text.removeTags(rawText).trim();
+            String cleanedNoSpaces = cleaned.replaceAll("\\s+", "");
             for (String target : pohUiTargetTexts) {
-                if (cleaned.contains(target)) {
+                String targetNoSpaces = target.replaceAll("\\s+", "");
+                if (cleaned.contains(target) || cleanedNoSpaces.contains(targetNoSpaces)) {
                     Rectangle bounds = widget.getBounds();
                     if (bounds != null && bounds.width > 0 && bounds.height > 0) {
+                        int rowHeight = Math.max(bounds.height, 28);
                         graphics.setColor(fill);
-                        graphics.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+                        graphics.fillRect(bounds.x, bounds.y, bounds.width, rowHeight);
                         graphics.setColor(border);
                         graphics.setStroke(new BasicStroke(1.5f));
-                        graphics.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+                        graphics.drawRect(bounds.x, bounds.y, bounds.width, rowHeight);
                     }
                     break;
                 }

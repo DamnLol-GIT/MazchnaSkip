@@ -28,7 +28,7 @@ dependencies {
 }
 
 group = 'com.DamnLol.MazchnaSkip'
-version = '1.4.0'
+version = '1.4.3'
 
 tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
