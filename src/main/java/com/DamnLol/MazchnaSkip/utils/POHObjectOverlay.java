@@ -132,16 +132,27 @@ public class POHObjectOverlay extends Overlay {
 
             Shape clickbox = obj.getClickbox();
             if (clickbox != null) {
-                graphics.setColor(fill);
-                graphics.fill(clickbox);
-                graphics.setColor(border);
-                graphics.setStroke(new BasicStroke(2f));
-                graphics.draw(clickbox);
+                try {
+                    graphics.setColor(fill);
+                    graphics.fill(clickbox);
+                    graphics.setColor(border);
+                    graphics.setStroke(new BasicStroke(2f));
+                    graphics.draw(clickbox);
+                } catch (Exception e) {
+                    LocalPoint lp = obj.getLocalLocation();
+                    Polygon tilePoly = Perspective.getCanvasTilePoly(client, lp);
+                    if (tilePoly != null) {
+                        graphics.setColor(fill);
+                        graphics.fill(tilePoly);
+                        graphics.setColor(border);
+                        graphics.setStroke(new BasicStroke(2f));
+                        graphics.draw(tilePoly);
+                    }
+                }
                 continue;
             }
 
             LocalPoint lp = obj.getLocalLocation();
-            if (lp == null) continue;
 
             Polygon tilePoly = Perspective.getCanvasTilePoly(client, lp);
             if (tilePoly == null) continue;

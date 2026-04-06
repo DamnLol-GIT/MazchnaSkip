@@ -114,6 +114,8 @@ public class MazchnaSkipPlugin extends Plugin {
 	private List<Integer> navHintEquippedItemIds = Collections.emptyList();
 	private List<String> navHintPohObjectMenuOptions = Collections.emptyList();
 	private List<Integer> navHintPohObjectIds = Collections.emptyList();
+	private String navHintFairyRingCode = null;
+	private boolean navHintIsPohEntry = false;
 	private boolean playerOutsideTaskArea = false;
 	private boolean playerInPoh = false;
 	private List<String> navHintTargets = Collections.emptyList();
@@ -121,10 +123,17 @@ public class MazchnaSkipPlugin extends Plugin {
 	private int teleportCooldownTicksRemaining = 0;
 	private static final int TELEPORT_COOLDOWN_TICKS = 60;   // max ticks to suppress after teleport click
 	private static final int TELEPORT_ARRIVE_RADIUS  = 32;   // tiles from task edge = task area; suppress highlight
-	private static final int TELEPORT_CANCEL_RADIUS  = 64;   // tiles from task edge = reset highlight
+	private static final int TELEPORT_CANCEL_RADIUS  = 128;  // tiles from task edge = reset highlight (covers all task teleport locations)
 
 	private static final List<Integer> SM_POH_ITEMS = List.of(13280, 13342, 9789, 9790, 8013);
 	private static final List<Integer> SM_DESERT_ITEMS = List.of(13133, 13134, 13135, 13136);
+	private static final List<Integer> FAIRY_RING_POH_IDS = List.of(29228, 29229, 27097, 40779);
+	private static final List<Integer> FAIRY_RING_OVERWORLD_IDS = List.of(29495, 29560);
+	private static final List<Integer> FAIRY_RING_IDS = List.of(29228, 29229, 27097, 29495, 29560, 40779);
+	private static final List<Integer> SPIRIT_TREE_POH_IDS = List.of(29227, 40778, 44936, 29229, 27097, 40779);
+	private static final List<Integer> SPIRIT_TREE_OVERWORLD_IDS = List.of(1293, 1294, 1295, 33733);
+	private static final List<Integer> SPIRIT_TREE_IDS = List.of(1293, 1294, 1295, 33733, 29227, 40778, 44936, 29229, 27097, 40779);
+	private static final Set<Integer> POH_ENTRY_OBJECT_IDS = Set.of(31925, 29178, 29179, 29188, 29189);
 	private boolean sweatModeActive = false;
 	private List<Integer> sweatModeItemIds = Collections.emptyList();
 	private List<String> sweatModeMenuOptions = Collections.emptyList();
@@ -194,6 +203,24 @@ public class MazchnaSkipPlugin extends Plugin {
 
 	@Subscribe
 	public void onGameTick(GameTick gameTick) {
+		// Track fairy ring Travel Log panel open/close to manage overlay highlight state
+		if (config.enableNavigationHints() && navHintFairyRingCode != null) {
+			Widget fairyLog = client.getWidget(FAIRY_RING_LOG_CONTENTS);
+			Widget[] rows = fairyLog != null ? fairyLog.getDynamicChildren() : null;
+			boolean panelOpen = rows != null && rows.length > 0;
+			if (panelOpen && !fairyRingPanelHighlightActive) {
+				POHObjectOverlay.setPohUiTargetTexts(List.of(navHintFairyRingCode));
+				POHObjectOverlay.setActive(true);
+				fairyRingPanelHighlightActive = true;
+			} else if (!panelOpen && fairyRingPanelHighlightActive) {
+				fairyRingPanelHighlightActive = false;
+				if (navHintPohObjectIds.isEmpty()) {
+					POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
+					POHObjectOverlay.setActive(false);
+				}
+			}
+		}
+
 		Widget chatBoxNpcName = client.getWidget(InterfaceID.ChatLeft.NAME);
 		Widget chatBoxNpcText = client.getWidget(InterfaceID.ChatLeft.TEXT);
 
@@ -234,14 +261,14 @@ public class MazchnaSkipPlugin extends Plugin {
 				if (config.enableNavigationHints()) {
 					if (teleportCooldownTicksRemaining > 0) {
 						teleportCooldownTicksRemaining--;
-						// Cancel early if timer expires OR player is >64 tiles from every task area edge
-						if (teleportCooldownTicksRemaining <= 0 || isFarFromTaskArea(playerPos)) {
+						boolean inGracePeriod = teleportCooldownTicksRemaining > (TELEPORT_COOLDOWN_TICKS - 10);
+						boolean underground = playerPos.getY() > 6000;
+						if (!playerInPoh && !underground && !inGracePeriod && isFarFromTaskArea(playerPos)) {
 							teleportCooldownTicksRemaining = 0;
 						}
 					}
 
-					boolean suppressHighlight = teleportCooldownTicksRemaining > 0
-							&& isNearTaskArea(playerPos);
+					boolean suppressHighlight = teleportCooldownTicksRemaining > 0;
 
 					if (playerOutsideTaskArea && !suppressHighlight) {
 						List<Integer> allItemIds = new ArrayList<>();
@@ -250,40 +277,26 @@ public class MazchnaSkipPlugin extends Plugin {
 						List<Integer> pohObjectIds = Collections.emptyList();
 						List<String> pohObjectMenuOptions = Collections.emptyList();
 
-						if (playerInPoh) {
-							pohSearch:
-							for (NpcLocation loc : currentSlayerTask.getLocations()) {
-								for (NavigationHint hint : loc.getNavigationHints()) {
-									if (!hint.getPohObjectIds().isEmpty() && hint.getItemIds().isEmpty()) {
-										pohObjectIds = hint.getPohObjectIds();
-										pohObjectMenuOptions = hint.getPohObjectMenuOptions();
-										break pohSearch;
-									}
-								}
-							}
-						}
-
-						// Find priority highlight.
+						// In POH skip house teletabs and construction cape
+						NavigationHint foundHint = null;
 						hintSearch:
 						for (NpcLocation loc : currentSlayerTask.getLocations()) {
 							for (NavigationHint hint : loc.getNavigationHints()) {
 								if (!hint.getPohObjectIds().isEmpty() && hint.getItemIds().isEmpty()) {
 									continue;
 								}
-								// In POH - skip house teletabs and construction cape highlights
 								if (playerInPoh && (isHouseTeleOnlyHint(hint) || isConstructionCapeHint(hint))) {
 									continue;
 								}
-
-								boolean foundInInv = false;
-								boolean foundInEquip = false;
 
 								ItemContainer inv = client.getItemContainer(InventoryID.INV);
 								if (inv != null) {
 									for (Item item : inv.getItems()) {
 										if (hint.getItemIds().contains(item.getId())) {
-											foundInInv = true;
-											break;
+											allItemIds.addAll(hint.getItemIds());
+											allMenuOptions.addAll(hint.getMenuOptions());
+											foundHint = hint;
+											break hintSearch;
 										}
 									}
 								}
@@ -294,19 +307,92 @@ public class MazchnaSkipPlugin extends Plugin {
 								if (worn != null) {
 									for (Item item : worn.getItems()) {
 										if (checkIds.contains(item.getId())) {
-											foundInEquip = true;
-											break;
+											allItemIds.addAll(hint.getItemIds());
+											allMenuOptions.addAll(hint.getMenuOptions());
+											allEquippedItemIds.addAll(checkIds);
+											foundHint = hint;
+											break hintSearch;
 										}
 									}
 								}
+							}
+						}
 
-								if (foundInInv || foundInEquip) {
-									allItemIds.addAll(hint.getItemIds());
-									allMenuOptions.addAll(hint.getMenuOptions());
-									if (foundInEquip && !foundInInv) {
-										allEquippedItemIds.addAll(checkIds);
+						boolean isQuestCapeHint = foundHint != null
+								&& !Collections.disjoint(foundHint.getItemIds(), List.of(9813, 13068));
+						boolean questCapeIsDirect = isQuestCapeHint && "Bears".equals(currentSlayerTask.getName());
+						boolean foundDirectDestinationItem = foundHint != null
+								&& !isPohEntryHint(foundHint)
+								&& (!isQuestCapeHint || questCapeIsDirect);
+						// Always run pohSearch for bears in POH — proximity decides cape vs fairy ring
+						boolean shouldRunPohSearch = playerInPoh
+								&& (!foundDirectDestinationItem || "Bears".equals(currentSlayerTask.getName()));
+
+						if (navHintFairyRingCode != null && !playerInPoh
+								&& !foundDirectDestinationItem
+								&& closestObjectDistance(FAIRY_RING_OVERWORLD_IDS, playerPos) <= 14) {
+							// Overworld fairy ring nearby and no direct-destination item — highlight it
+							pohObjectIds = FAIRY_RING_OVERWORLD_IDS;
+							pohObjectMenuOptions = List.of(navHintFairyRingCode, "Teleport Menu");
+							allItemIds = Collections.emptyList();
+							allMenuOptions = Collections.emptyList();
+							allEquippedItemIds = Collections.emptyList();
+						} else if ("Wolves".equals(currentSlayerTask.getName()) && !playerInPoh && !foundDirectDestinationItem
+								&& closestObjectDistance(SPIRIT_TREE_OVERWORLD_IDS, playerPos) <= 14) {
+							pohObjectIds = SPIRIT_TREE_OVERWORLD_IDS;
+							pohObjectMenuOptions = List.of("Gnome Stronghold", "Travel");
+							allItemIds = Collections.emptyList();
+							allMenuOptions = Collections.emptyList();
+							allEquippedItemIds = Collections.emptyList();
+						} else if (shouldRunPohSearch) {
+							if ("Bears".equals(currentSlayerTask.getName())) {
+								// Only fall back to the POH fairy ring if no quest cape is available.
+								List<Integer> mountedQuestCapeIds = List.of(29178, 29179);
+								if (foundHint != null && isQuestCapeHint) {
+									if (isAnyPohObjectInScene(mountedQuestCapeIds)) {
+										pohObjectIds = mountedQuestCapeIds;
+										pohObjectMenuOptions = List.of("Teleport");
 									}
-									break hintSearch;
+									// Keep allItemIds (quest cape item) — do NOT clear it
+								} else {
+									// No quest cape — fall back to fairy ring in POH if present
+									if (isAnyPohObjectInScene(FAIRY_RING_POH_IDS)) {
+										pohObjectIds = FAIRY_RING_POH_IDS;
+										pohObjectMenuOptions = List.of("BLR", "Teleport Menu");
+									}
+									allItemIds = Collections.emptyList();
+									allMenuOptions = Collections.emptyList();
+									allEquippedItemIds = Collections.emptyList();
+								}
+							} else {
+								pohSearch:
+								for (NpcLocation loc : currentSlayerTask.getLocations()) {
+									for (NavigationHint hint : loc.getNavigationHints()) {
+										if (!hint.getPohObjectIds().isEmpty() && hint.getItemIds().isEmpty()) {
+											boolean isEntryHint = hint.getPohObjectIds().stream()
+													.anyMatch(POH_ENTRY_OBJECT_IDS::contains);
+											if (isEntryHint) continue;
+											if (isAnyPohObjectInScene(hint.getPohObjectIds())) {
+												pohObjectIds = hint.getPohObjectIds();
+												pohObjectMenuOptions = hint.getPohObjectMenuOptions();
+												break pohSearch;
+											}
+										}
+									}
+								}
+								// If a POH exit object was found, clear any POH-entry item hint
+								if (!pohObjectIds.isEmpty()) {
+									boolean foundFairyRingForNonFairyTask = navHintFairyRingCode == null
+											&& !Collections.disjoint(pohObjectIds, FAIRY_RING_IDS)
+											&& Collections.disjoint(pohObjectIds, SPIRIT_TREE_IDS);
+									if (foundFairyRingForNonFairyTask) {
+										pohObjectIds = Collections.emptyList();
+										pohObjectMenuOptions = Collections.emptyList();
+									} else {
+										allItemIds = Collections.emptyList();
+										allMenuOptions = Collections.emptyList();
+										allEquippedItemIds = Collections.emptyList();
+									}
 								}
 							}
 						}
@@ -314,6 +400,11 @@ public class MazchnaSkipPlugin extends Plugin {
 						navHintItemIds = allItemIds;
 						navHintMenuOptions = allMenuOptions;
 						navHintEquippedItemIds = allEquippedItemIds;
+						// Mark as POH-entry if the hint is a house tablet / construction cape,
+						boolean isQuestCapePohEntry = foundHint != null && isQuestCapeHint
+								&& navHintFairyRingCode != null
+								&& !"Bears".equals(currentSlayerTask.getName());
+						navHintIsPohEntry = (foundHint != null && isPohEntryHint(foundHint)) || isQuestCapePohEntry;
 
 						boolean pohIdsChanged = !pohObjectIds.equals(navHintPohObjectIds);
 						navHintPohObjectIds = pohObjectIds;
@@ -327,19 +418,25 @@ public class MazchnaSkipPlugin extends Plugin {
 						if (!navHintPohObjectIds.isEmpty()) {
 							if (pohIdsChanged) {
 								POHObjectOverlay.clearTracked();
-								List<String> uiTexts = navHintPohObjectMenuOptions.isEmpty()
-										? Collections.emptyList()
-										: List.of(navHintPohObjectMenuOptions.get(0));
+							}
+							List<String> uiTexts = navHintPohObjectMenuOptions.isEmpty()
+									? Collections.emptyList()
+									: List.of(navHintPohObjectMenuOptions.get(0));
+							if (!fairyRingPanelHighlightActive) {
 								POHObjectOverlay.setPohUiTargetTexts(uiTexts);
 							}
 							scanSceneForPohObjects();
 						}
-						POHObjectOverlay.setActive(!navHintPohObjectIds.isEmpty());
+						if (!fairyRingPanelHighlightActive) {
+							POHObjectOverlay.setActive(!navHintPohObjectIds.isEmpty());
+						}
 					} else {
 						teleItemOverlay.setActive(false);
-						POHObjectOverlay.setActive(false);
-						POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
-						POHObjectOverlay.clearTracked();
+						if (!fairyRingPanelHighlightActive) {
+							POHObjectOverlay.setActive(false);
+							POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
+							POHObjectOverlay.clearTracked();
+						}
 					}
 				}
 			}
@@ -630,9 +727,24 @@ public class MazchnaSkipPlugin extends Plugin {
 	public void onMenuOptionClicked(MenuOptionClicked event) {
 		if (playerOutsideTaskArea && config.enableNavigationHints()) {
 			String rawOption = Text.removeTags(event.getMenuOption());
-			boolean isNavHintClick = navHintMenuOptions.contains(rawOption)
-					|| navHintPohObjectMenuOptions.contains(rawOption);
-			if (isNavHintClick) {
+			boolean isItemHintClick = navHintMenuOptions.contains(rawOption);
+
+			boolean isPohObjectClick = navHintPohObjectMenuOptions.contains(rawOption);
+			// Only suppress highlight when actually teleporting
+			if (!isPohObjectClick && !navHintPohObjectIds.isEmpty()
+					&& FAIRY_RING_IDS.contains(event.getId())) {
+				String optLower = rawOption.toLowerCase();
+				boolean isTeleportOption = optLower.startsWith("last-destination")
+						|| optLower.equals("zanaris")
+						|| (navHintFairyRingCode != null && rawOption.contains(navHintFairyRingCode));
+				if (isTeleportOption) {
+					isPohObjectClick = true;
+				}
+			}
+
+			// Only start cooldown for final-destination clicks.
+			boolean isFinalDestinationClick = (isItemHintClick && !navHintIsPohEntry) || isPohObjectClick;
+			if (isFinalDestinationClick) {
 				teleportCooldownTicksRemaining = TELEPORT_COOLDOWN_TICKS;
 			}
 		}
@@ -713,7 +825,23 @@ public class MazchnaSkipPlugin extends Plugin {
 				}
 			}
 
-			if (config.useShortestPath()) {
+			// Extract fairy ring code early — only from pure fairy ring hints,
+			// not from spirit tree+fairy ring combo hints used for spirit tree tasks
+			navHintFairyRingCode = null;
+			for (NpcLocation loc : currentSlayerTask.getLocations()) {
+				for (NavigationHint hint : loc.getNavigationHints()) {
+					if (!hint.getPohObjectIds().isEmpty() && hint.getItemIds().isEmpty()
+							&& !Collections.disjoint(hint.getPohObjectIds(), FAIRY_RING_IDS)
+							&& Collections.disjoint(hint.getPohObjectIds(), SPIRIT_TREE_IDS)) {
+						List<String> opts = hint.getPohObjectMenuOptions();
+						if (!opts.isEmpty()) navHintFairyRingCode = opts.get(0);
+						break;
+					}
+				}
+				if (navHintFairyRingCode != null) break;
+			}
+
+			if (config.useShortestPath() && navHintFairyRingCode == null) {
 				WorldPoint location = currentSlayerTask.getShortestPathWorldPoint();
 				setShortestPath(location);
 			}
@@ -813,6 +941,8 @@ public class MazchnaSkipPlugin extends Plugin {
 		navHintEquippedItemIds = Collections.emptyList();
 		navHintPohObjectIds = Collections.emptyList();
 		navHintPohObjectMenuOptions = Collections.emptyList();
+		navHintFairyRingCode = null;
+		navHintIsPohEntry = false;
 		teleportCooldownTicksRemaining = 0;
 		teleItemOverlay.setHighlightItemIds(Collections.emptyList());
 		teleItemOverlay.setEquippedItemIds(Collections.emptyList());
@@ -821,6 +951,7 @@ public class MazchnaSkipPlugin extends Plugin {
 		POHObjectOverlay.setPohUiTargetTexts(Collections.emptyList());
 		POHObjectOverlay.setActive(false);
 		POHObjectOverlay.clearTracked();
+		fairyRingPanelHighlightActive = false;
 		playerOutsideTaskArea = false;
 
 		// Clear the shortest path when a task ends
@@ -843,6 +974,95 @@ public class MazchnaSkipPlugin extends Plugin {
 			sweatModeItemIds = Collections.emptyList();
 			sweatModeMenuOptions = Collections.emptyList();
 		}
+	}
+
+
+	/** Returns true if the current task's navigation hints include a POH spirit tree exit hint (not fairy ring). */
+	private List<Integer> resolveBearsProximityHint(WorldPoint playerPos) {
+		List<Integer> mountedQuestCapeIds = List.of(29178, 29179);
+		boolean hasCape = isAnyPohObjectInScene(mountedQuestCapeIds);
+		boolean hasFairyRing = closestObjectDistance(FAIRY_RING_POH_IDS, playerPos) <= 10;
+
+		if (!hasCape && !hasFairyRing) return null;
+		if (hasCape && !hasFairyRing) return mountedQuestCapeIds;
+		if (!hasCape) return FAIRY_RING_POH_IDS;
+
+		// Both present — pick the closer object
+		int capeDist = closestObjectDistance(mountedQuestCapeIds, playerPos);
+		int ringDist = closestObjectDistance(FAIRY_RING_POH_IDS, playerPos);
+		return capeDist <= ringDist ? mountedQuestCapeIds : FAIRY_RING_POH_IDS;
+	}
+
+	private int closestObjectDistance(List<Integer> objectIds, WorldPoint playerPos) {
+		int best = Integer.MAX_VALUE;
+		Player player = client.getLocalPlayer();
+		if (player == null) return best;
+		Scene scene = player.getWorldView().getScene();
+		Tile[][][] tiles = scene.getTiles();
+		for (Tile[][] plane : tiles) {
+			for (Tile[] row : plane) {
+				for (Tile tile : row) {
+					if (tile == null) continue;
+					for (GameObject obj : tile.getGameObjects()) {
+						if (obj != null && objectIds.contains(obj.getId())) {
+							int d = obj.getWorldLocation().distanceTo(playerPos);
+							if (d < best) best = d;
+						}
+					}
+					if (tile.getWallObject() != null && objectIds.contains(tile.getWallObject().getId())) {
+						int d = tile.getWallObject().getWorldLocation().distanceTo(playerPos);
+						if (d < best) best = d;
+					}
+					if (tile.getDecorativeObject() != null && objectIds.contains(tile.getDecorativeObject().getId())) {
+						int d = tile.getDecorativeObject().getWorldLocation().distanceTo(playerPos);
+						if (d < best) best = d;
+					}
+					if (tile.getGroundObject() != null && objectIds.contains(tile.getGroundObject().getId())) {
+						int d = tile.getGroundObject().getWorldLocation().distanceTo(playerPos);
+						if (d < best) best = d;
+					}
+				}
+			}
+		}
+		return best;
+	}
+
+	private boolean isAnyPohObjectInScene(List<Integer> objectIds) {
+		Player player = client.getLocalPlayer();
+		if (player == null) return false;
+		Scene scene = player.getWorldView().getScene();
+		Tile[][][] tiles = scene.getTiles();
+		for (Tile[][] plane : tiles) {
+			for (Tile[] row : plane) {
+				for (Tile tile : row) {
+					if (tile == null) continue;
+					for (GameObject obj : tile.getGameObjects()) {
+						if (obj != null && objectIds.contains(obj.getId())) return true;
+					}
+					if (tile.getWallObject() != null && objectIds.contains(tile.getWallObject().getId())) return true;
+					if (tile.getDecorativeObject() != null && objectIds.contains(tile.getDecorativeObject().getId())) return true;
+					if (tile.getGroundObject() != null && objectIds.contains(tile.getGroundObject().getId())) return true;
+				}
+			}
+		}
+		// Check impostor IDs
+		for (Tile[][] plane : tiles) {
+			for (Tile[] row : plane) {
+				for (Tile tile : row) {
+					if (tile == null) continue;
+					for (GameObject obj : tile.getGameObjects()) {
+						if (obj == null) continue;
+						ObjectComposition comp = client.getObjectDefinition(obj.getId());
+						if (comp != null && comp.getImpostorIds() != null) {
+							for (int impostorId : comp.getImpostorIds()) {
+								if (objectIds.contains(impostorId)) return true;
+							}
+						}
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private void scanSceneForPohObjects() {
@@ -936,6 +1156,11 @@ public class MazchnaSkipPlugin extends Plugin {
 		return opts != null && opts.contains("Tele to POH");
 	}
 
+	// Returns true if tele item only gets to the POH, not to the destination
+	private boolean isPohEntryHint(NavigationHint hint) {
+		return isHouseTeleOnlyHint(hint) || isConstructionCapeHint(hint);
+	}
+
 	public Function<NPC, HighlightedNpc> npcHighlighter = (n) -> {
 		if (targets.contains(n) && config.enableNpcHighlight()) {
 			return HighlightedNpc.builder()
@@ -955,6 +1180,57 @@ public class MazchnaSkipPlugin extends Plugin {
 	private boolean mazchnaHidden = false;
 	private SlayerTaskStreak lastActiveStreak = SlayerTaskStreak.Off;
 
+
+	private boolean fairyRingPanelHighlightActive = false;
+
+	// FairyringsLog components
+	private static final int FAIRY_RING_LOG_GROUP     = InterfaceID.FAIRYRINGS_LOG;
+	private static final int FAIRY_RING_LOG_CONTENTS  = InterfaceID.FairyringsLog.CONTENTS;
+	private static final int FAIRY_RING_LOG_SCROLLBAR = InterfaceID.FairyringsLog.SCROLLBAR;
+
+	// Scroll and highlight
+	@Subscribe
+	public void onWidgetLoaded(WidgetLoaded event) {
+		if (event.getGroupId() != FAIRY_RING_LOG_GROUP) return;
+		if (!config.enableNavigationHints()) return;
+		if (navHintFairyRingCode == null || navHintFairyRingCode.isEmpty()) return;
+		final String code = navHintFairyRingCode;
+		clientThread.invokeLater(() -> scrollFairyRingPanel(code));
+	}
+
+	private void scrollFairyRingPanel(String code) {
+		Widget contentsList = client.getWidget(FAIRY_RING_LOG_CONTENTS);
+		if (contentsList == null) return;
+
+		Widget codeWidget = null;
+		Widget[] rows = contentsList.getDynamicChildren();
+		if (rows != null) {
+			for (Widget widget : rows) {
+				if (widget != null) {
+					String widgetText = Text.removeTags(widget.getText()).trim().replaceAll("\\s+", "");
+					if (code.equalsIgnoreCase(widgetText)) {
+						codeWidget = widget;
+						break;
+					}
+				}
+			}
+		}
+		if (codeWidget == null) return;
+
+		int panelScrollY = Math.min(
+				codeWidget.getRelativeY(),
+				contentsList.getScrollHeight() - contentsList.getHeight()
+		);
+
+		contentsList.setScrollY(panelScrollY);
+		contentsList.revalidateScroll();
+		client.runScript(
+				ScriptID.UPDATE_SCROLLBAR,
+				FAIRY_RING_LOG_SCROLLBAR,
+				FAIRY_RING_LOG_CONTENTS,
+				panelScrollY
+		);
+	}
 
 	//*Special thanks to Jewel and Pine for the helpful advice*//
 	@Subscribe(priority = -1)
@@ -1001,7 +1277,49 @@ public class MazchnaSkipPlugin extends Plugin {
 		}
 		client.setMenuEntries(alteredMenuEntries.toArray(new MenuEntry[0]));
 
-		if (playerOutsideTaskArea && config.enableNavigationHints() && !navHintPohObjectMenuOptions.isEmpty()
+		if (playerOutsideTaskArea && config.enableNavigationHints() && !navHintPohObjectIds.isEmpty()
+				&& navHintFairyRingCode != null
+				&& !Collections.disjoint(navHintPohObjectIds, FAIRY_RING_IDS)) {
+			// Fairy ring menu handling: highlight the best option
+			String hexColor = String.format("%06x", config.getTeleColor().getRGB() & 0xFFFFFF);
+			MenuEntry[] entries = client.getMenuEntries();
+
+			boolean menuIsForFairyRing = false;
+			for (MenuEntry entry : entries) {
+				if (FAIRY_RING_IDS.contains(entry.getIdentifier())) {
+					menuIsForFairyRing = true;
+					break;
+				}
+			}
+
+			if (menuIsForFairyRing && navHintFairyRingCode != null) {
+				// If Last-destination already matches -> highlight that; else -> highlight Configure
+				MenuEntry bestEntry = null;
+				for (MenuEntry entry : entries) {
+					String rawOpt = Text.removeTags(entry.getOption());
+					if (rawOpt.startsWith("Last-destination") && rawOpt.contains("(" + navHintFairyRingCode + ")")) {
+						bestEntry = entry;
+						break;
+					}
+				}
+				if (bestEntry == null) {
+					// Last-destination doesn't match — find Configure
+					for (MenuEntry entry : entries) {
+						if (Text.removeTags(entry.getOption()).equals("Configure")) {
+							bestEntry = entry;
+							break;
+						}
+					}
+				}
+
+				if (bestEntry != null) {
+					String rawOpt = Text.removeTags(bestEntry.getOption());
+					String rawTgt = Text.removeTags(bestEntry.getTarget());
+					bestEntry.setOption("<col=" + hexColor + ">" + rawOpt + "</col>");
+					bestEntry.setTarget("<col=" + hexColor + ">" + rawTgt + "</col>");
+				}
+			}
+		} else if (playerOutsideTaskArea && config.enableNavigationHints() && !navHintPohObjectMenuOptions.isEmpty()
 				&& !navHintPohObjectIds.isEmpty()) {
 			String hexColor = String.format("%06x", config.getTeleColor().getRGB() & 0xFFFFFF);
 			MenuEntry[] entries = client.getMenuEntries();

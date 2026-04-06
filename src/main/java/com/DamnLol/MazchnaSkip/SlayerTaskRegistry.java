@@ -54,83 +54,116 @@ public class SlayerTaskRegistry {
     private static final List<Integer> JEWELLERY_BOX = List.of(29156, 37520, 37521, 37522, 37523, 37524, 37525, 37526, 37527, 37528, 37529, 37530, 37531, 37532, 37533, 37534, 37535, 37536, 37537, 37538, 37539, 37540, 37541, 37542, 37543, 37544, 37545, 37546, 50712);
     private static final List<Integer> MOUNTED_XERIC = List.of(33411, 33412, 33413, 33414, 33415, 33419);
     private static final List<Integer> MOUNTED_DIGSITE = List.of(33416, 33417, 33418, 33420);
+    private static final List<Integer> MOUNTED_QUEST_CAPE = List.of(29178, 29179);
+    private static final List<Integer> MOUNTED_MAX_CAPE = List.of(31925);
+    private static final List<Integer> MOUNTED_CRAFTING_CAPE = List.of(29188, 29189);
+    private static final List<Integer> SPIRIT_TREE_OVERWORLD = List.of(1293, 1294, 1295, 33733);
+    private static final List<Integer> SPIRIT_TREE_POH_ONLY = List.of(29227, 40778, 44936);
+    private static final List<Integer> SPIRIT_TREE_FAIRY_RING_COMBO = List.of(29229, 27097, 40779);
+    private static final List<Integer> SPIRIT_TREE_POH = List.of(29227, 40778, 44936, 29229, 27097, 40779);
+    private static final List<Integer> SPIRIT_TREE_ALL = List.of(1293, 1294, 1295, 33733, 29227, 40778, 44936, 29229, 27097, 40779);
+    private static final List<Integer> FAIRY_RING_POH = List.of(29228, 29229, 27097, 40779);
+    private static final List<Integer> FAIRY_RING_OVERWORLD = List.of(29495, 29560);
+    private static final List<Integer> FAIRY_RING = List.of(29228, 29229, 27097, 40779, 29495, 29560);
 
 
-    // Max cape > Construction cape > Quest cape > Teleport to house
+    // Max cape > (POH) Mounted max cape > Construction cape > Quest cape > (POH) Mounted quest cape > Teleport to house
     private static List<NavigationHint> pohChain() {
         return List.of(
                 new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
                 new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
                 new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_QUEST_CAPE, List.of("Teleport")),
                 new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
         );
     }
 
-    // Max cape > Construction cape > Teleport to house
+    // Max cape > (POH) Mounted max cape > Construction cape > Teleport to house
     private static List<NavigationHint> pohChainNoQuest() {
         return List.of(
                 new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
                 new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
                 new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
         );
     }
 
-    // Slayer ring > Max cape > Construction cape > Quest cape > Teleport to house
+    // Slayer ring > Quest cape > Max cape > (POH) Mounted max cape > Construction cape > Teleport to house > (POH/OW) Fairy ring AJR
     private static List<NavigationHint> slayerRingFremChain() {
         return List.of(
                 new NavigationHint(SLAYER_RING, List.of("Teleport", "Fremennik Dungeon"), SLAYER_RING),
-                new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
-                new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
                 new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE),
-                new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
+                new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
+                new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
+                new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break")),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), FAIRY_RING, List.of("AJR", "Teleport Menu"))
         );
     }
 
-    // Max cape > Construction cape > POH object > Teleport to house
+    // Max cape > (POH) Mounted max cape > Construction cape > POH object > Teleport to house
     private static List<NavigationHint> pohChainNoQuestPoh(List<Integer> objectIds, List<String> objectMenuOptions) {
         List<String> primaryOption = objectMenuOptions.isEmpty()
                 ? Collections.emptyList()
                 : List.of(objectMenuOptions.get(0));
         return List.of(
                 new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
                 new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
                 new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), objectIds, primaryOption),
                 new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
         );
     }
 
-    //  Achievement diary cape > Xeric > Max > Construction > POH Xeric > Quest > Teleport to house
+    //  Achievement diary cape > Xeric > Max > (POH) Mounted max cape > Construction > POH Xeric > Teleport to house
     private static List<NavigationHint> ghostsChain() {
         return List.of(
                 new NavigationHint(ACHIEVEMENT_DIARY_CAPE, List.of("Teleport", "Kourend: Castle"), ACHIEVEMENT_DIARY_CAPE),
                 new NavigationHint(XERIC_TALISMAN, List.of("Rub", "Xeric's Heart"), XERIC_TALISMAN),
                 new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
                 new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
                 new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_XERIC, List.of("Heart","Teleport menu")),
-                new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE),
                 new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
         );
     }
 
 
-    // Max cape > Construction cape > Quest cape > Teleport to house
-    private static List<NavigationHint> pohChainFairyRing() {
+    // Quest cape > Max cape > (POH) Mounted max cape > Construction cape > Teleport to house > (POH) Fairy ring
+    private static List<NavigationHint> pohChainFairyRing(String fairyRingCode) {
         return List.of(
-                new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
-                new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
                 new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE),
-                new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
+                new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
+                new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
+                new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break")),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), FAIRY_RING, List.of(fairyRingCode, "Teleport Menu"))
         );
     }
 
-    // Royal seed pod > Quest cape > Max cape > Construction cape > Quest cape > Teleport to house
+    // Bears: Quest cape > (POH) Mounted quest cape OR fairy ring BLR (proximity-decided in plugin) > Max cape > (POH) Mounted max cape > Construction cape > Teleport to house > (POH) Fairy ring BLR
+    private static List<NavigationHint> bearsFairyRingChain() {
+        return List.of(
+                new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_QUEST_CAPE, List.of("Teleport")),
+                new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
+                new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
+                new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break")),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), FAIRY_RING, List.of("BLR", "Teleport Menu"))
+        );
+    }
+
+    // Royal seed pod > Spirit tree (overworld) > Max cape > (POH) Mounted max cape > Construction cape > Teleport to house > (POH) Spirit tree
     private static List<NavigationHint> seedPodChain() {
         return List.of(
                 new NavigationHint(ROYAL_SEED_POD, List.of("Commune")),
                 new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
                 new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
-                new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE),
-                new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
+                new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break")),
+                new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), SPIRIT_TREE_POH, List.of("Gnome Stronghold", "Travel"))
         );
     }
 
@@ -155,12 +188,13 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(3327, 3475, 0),
                                             new WorldPoint(3398, 3507, 0)
                                     )
-                            ), new String[]{"Ring of the elements: Earth Altar (Option 3)", "Fairy Ring: AJS"},
+                            ), new String[]{"Ring of the elements: Earth Altar (Option 3)", "(POH) Digsite Pendant"},
                                     List.of(
                                             new NavigationHint(RING_OF_ELEMENTS, List.of("Rub", "Earth Altar"), RING_OF_ELEMENTS),
                                             new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                                            new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
                                             new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
-                                            new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE),
+                                            new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_DIGSITE, List.of("Digsite", "Teleport menu")),
                                             new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
                                     ))
                     ))
@@ -174,7 +208,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2722, 3351, 0)
                                     )
                             ), new String[]{"Quest Cape teleport", "Fairy ring: BLR"},
-                                    pohChainFairyRing())
+                                    bearsFairyRingChain())
                     ))
             ),
             Map.entry("catablepon", new SlayerTask("Catablepon", List.of(NpcID.SOS_PEST_CATABLEPON, NpcID.SOS_PEST_CATABLEPON2, NpcID.SOS_PEST_CATABLEPON3), List.of(
@@ -200,7 +234,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2721, 5245, 0)
                                     )
                             ), new String[]{"Fairy ring: AJQ"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("AJQ"))
                     ), "Bring a light source", new WorldPoint(2715, 5235, 0))
             ),
             Map.entry("cave crawlers", new SlayerTask("Cave Crawlers", List.of(
@@ -232,7 +266,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2735, 5239, 0)
                                     )
                             ), new String[]{"Fairy ring: AJQ"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("AJQ"))
                     ), "Bring a light source", new WorldPoint(2730, 5234, 0))
             ),
             Map.entry("cockatrice", new SlayerTask("Cockatrice", List.of(NpcID.SLAYER_COCKATRICE, NpcID.SUPERIOR_COCKATRICE), List.of(
@@ -257,7 +291,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2721, 3712, 0)
                                     )
                             ), new String[]{"Fairy ring: DKS"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("DKS"))
                     ))
             ),
             Map.entry("crawling hands", new SlayerTask("Crawling Hands", List.of(
@@ -289,10 +323,12 @@ public class SlayerTaskRegistry {
                             ), new String[]{"Desert Amulet to Nardah", "Fairy Ring DLQ"},
                                     List.of(
                                             new NavigationHint(DESERT_AMULET, List.of("Nardah"), DESERT_AMULET),
-                                            new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
-                                            new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
                                             new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE),
-                                            new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
+                                            new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                                            new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
+                                            new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
+                                            new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break")),
+                                            new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), FAIRY_RING, List.of("DLQ", "Teleport Menu"))
                                     ))
                     ))
             ),
@@ -331,7 +367,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(3422, 3469, 0)
                                     )
                             ), new String[]{"Fairy Ring: CKS"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("CKS"))
                     ))
             ),
             Map.entry("hill giants", new SlayerTask("Hill Giants", List.of(
@@ -345,7 +381,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(1451, 3604, 0)
                                     )
                             ), new String[]{"Fairy Ring: DJR"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("DJR"))
                     ))
             ),
             Map.entry("hobgoblins", new SlayerTask("Hobgoblins", List.of(
@@ -363,12 +399,13 @@ public class SlayerTaskRegistry {
                             ), new String[]{"Crafting Cape Teleport", "(POH) Skills Necklace: Crafting Guild"},
                                     List.of(
                                             new NavigationHint(MAX_CAPE, List.of("Teleports"), MAX_CAPE),
+                                            new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_MAX_CAPE, List.of("Teleports")),
                                             new NavigationHint(CRAFTING_CAPE, List.of("Teleport"), CRAFTING_CAPE),
+                                            new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), MOUNTED_CRAFTING_CAPE, List.of("Teleport")),
                                             new NavigationHint(CONSTRUCTION_CAPE, List.of("Tele to POH", "Teleport"), CONSTRUCTION_CAPE),
                                             new NavigationHint(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(),
                                                     JEWELLERY_BOX, List.of("Crafting Guild")),
-                                            new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break")),
-                                            new NavigationHint(QUEST_CAPE, List.of("Teleport"), QUEST_CAPE)
+                                            new NavigationHint(TELEPORT_TO_HOUSE, List.of("Break"))
                                     ))
                     ))
             ),
@@ -382,7 +419,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(3066, 9563, 0)
                                     )
                             ), new String[]{"Fairy Ring: AIQ"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("AIQ"))
                     ), "**Block**")
             ),
             Map.entry("kalphites", new SlayerTask("Kalphites", List.of(NpcID.KALPHITE_WORKER_STRONGHOLDCAVE), List.of(
@@ -428,7 +465,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(3441, 3018, 0)
                                     )
                             ), new String[]{"Fairy ring: DLQ"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("DLQ"))
                     ), "Bring Ice coolers")
             ),
             Map.entry("mogres", new SlayerTask("Mogres", List.of(NpcID.MUDSKIPPER_OGRE), List.of(
@@ -440,7 +477,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2999, 3105, 0)
                                     )
                             ), new String[]{"Fairy Ring: AIQ"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("AIQ"))
                     ), "Bring Fishing Explosives. **Block**")
             ),
             Map.entry("pyrefiends", new SlayerTask("Pyrefiends", List.of(
@@ -456,7 +493,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2264, 2956, 0)
                                     )
                             ), new String[]{"Fairy Ring: BJP"},
-                                    pohChainFairyRing())
+                                    pohChainFairyRing("BJP"))
                     ))
             ),
             Map.entry("rockslugs", new SlayerTask("Rockslugs", List.of(NpcID.SUPERIOR_ROCKSLUG, NpcID.SLAYER_ROCKSLUG, NpcID.SLAYER_ROCKSLUG_BABY), List.of(
@@ -544,7 +581,7 @@ public class SlayerTaskRegistry {
                                             new WorldPoint(2828, 3477, 0),
                                             new WorldPoint(2865, 3519, 0)
                                     )
-                            ), new String[]{"Royal Seed Pod to Gnome Glider: Sindarpos"},
+                            ), new String[]{"Royal Seed Pod to Gnome Glider: Sindarpos", "Spirit Tree to Glider"},
                                     seedPodChain())
                     ))
             ),
